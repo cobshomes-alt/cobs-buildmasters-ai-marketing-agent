@@ -2,47 +2,44 @@
 
 import { useEffect, useState } from "react";
 
+type Post = { id: number; title: string; body: string; status: "Draft" | "Pending approval" | "Approved" | "Scheduled" | "Rejected" };
 const modules = ["Overview", "Campaign Planner", "Content Calendar", "Creative Studio", "Approvals", "Scheduler", "Analytics", "Leads", "Knowledge Base", "Settings"];
-const cardStyle = { background: "white", borderRadius: 10, padding: 22, boxShadow: "0 1px 4px #cbd4df" };
+const card = { background: "#fff", borderRadius: 10, padding: 22, boxShadow: "0 1px 4px #cbd4df" };
+const button = { background: "#17345c", color: "#fff", border: 0, borderRadius: 7, padding: "10px 14px", fontWeight: 700, cursor: "pointer" };
 
 export default function Page() {
   const [active, setActive] = useState("Overview");
-  const [approval, setApproval] = useState("Draft");
   const [notice, setNotice] = useState("Checking Supabase connection…");
-
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [title, setTitle] = useState("Build stronger with COBS concrete blocks");
+  const [body, setBody] = useState("Quality concrete blocks and fast floors for your next construction project.");
+  const [campaign, setCampaign] = useState("October Build Smart campaign");
+  const [campaigns, setCampaigns] = useState<string[]>([]);
+  const updatePost = (id: number, status: Post["status"]) => setPosts((items) => items.map((item) => item.id === id ? { ...item, status } : item));
+  const addPost = () => {
+    const post = { id: Date.now(), title: title.trim() || "Untitled COBS post", body: body.trim() || "Add your campaign message here.", status: "Draft" as const };
+    setPosts((items) => [post, ...items]); setActive("Content Calendar"); setNotice("Draft created. Edit the copy below, then send it to approval when it is ready.");
+  };
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !key) { setNotice("Supabase connection needs attention"); return; }
-    fetch(url + "/rest/v1/organizations?select=id&limit=1", { headers: { apikey: key } })
-      .then((response) => setNotice(response.ok ? "Supabase connected — secure workspace ready" : "Supabase connection needs attention"))
-      .catch(() => setNotice("Supabase connection needs attention"));
+    fetch(url + "/rest/v1/organizations?select=id&limit=1", { headers: { apikey: key } }).then((r) => r.ok && setNotice("Supabase connected — create your first campaign or content draft.")).catch(() => setNotice("Supabase connection needs attention"));
   }, []);
-
-  const choose = (item: string) => { setActive(item); setNotice(item + " selected."); };
-  const create = () => { setApproval("Draft"); setActive("Content Calendar"); setNotice("New content draft created. Review it before sending for approval."); };
-
-  return <main style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f4f6f8", color: "#17345c" }}>
-    <aside style={{ position: "fixed", inset: "0 auto 0 0", width: 250, background: "#102f5b", padding: 28, color: "white" }}>
-      <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>COBS</div>
-      <div style={{ fontSize: 13, letterSpacing: 2 }}>BUILDMASTERS LTD</div>
-      <div style={{ marginTop: 18, color: "#d9bc7b", fontSize: 11, letterSpacing: 1.5 }}>MARKETING AGENT</div>
-      <nav aria-label="Workspace sections" style={{ marginTop: 34 }}>
-        {modules.map((item) => <button key={item} type="button" onClick={() => choose(item)} style={{ display: "block", width: "100%", textAlign: "left", border: 0, margin: "4px 0", padding: "10px 12px", borderRadius: 6, cursor: "pointer", color: "#e0e9f5", background: active === item ? "#295182" : "transparent", fontSize: 15 }}>{item}</button>)}
-      </nav>
-    </aside>
-    <section style={{ marginLeft: 250, padding: 44, maxWidth: 1300 }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-        <div><p style={{ color: "#b18b4a", fontWeight: 700, fontSize: 12, letterSpacing: 1.4 }}>PRIVATE WORKSPACE</p><h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1></div>
-        <button type="button" onClick={create} style={{ background: "#17345c", color: "white", border: 0, borderRadius: 7, padding: "12px 17px", fontWeight: 700, cursor: "pointer" }}>+ Create content</button>
-      </header>
-      <div role="status" style={{ background: "white", borderLeft: "4px solid #19865c", padding: 16, borderRadius: 5, margin: "25px 0" }}>● {notice}</div>
-      {active === "Overview" ? <>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(150px, 1fr))", gap: 16 }}>
-          {[["Posts requiring approval", approval === "Pending Approval" ? "1" : "0", "Live database ready"], ["Approved and ready", approval === "Approved" ? "1" : "0", "Protected queue gate"], ["Connected accounts", "—", "No accounts connected"], ["Marketing spend", "—", "Set monthly budget in Settings"]].map(([title, value, note]) => <article key={title} style={cardStyle}><div style={{ color: "#617187" }}>{title}</div><strong style={{ display: "block", fontSize: 31, margin: "12px 0" }}>{value}</strong><small style={{ color: "#7a899b" }}>{note}</small></article>)}
-        </div>
-        <article style={{ ...cardStyle, marginTop: 18 }}><p style={{ fontSize: 12, color: "#b18b4a", fontWeight: 700, letterSpacing: 1.3 }}>APPROVAL SAFEGUARD</p><h2>Content review: {approval}</h2><p>Welcome COBS Buildmasters Ltd. Content actions now respond immediately in this workspace.</p><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button type="button" onClick={() => { setApproval("Pending Approval"); setNotice("Draft sent for approval."); }} style={{ padding: "10px 14px", cursor: "pointer" }}>Send for approval</button><button type="button" onClick={() => { setApproval("Approved"); setNotice("Current version approved and eligible for secure queueing."); }} style={{ padding: "10px 14px", cursor: "pointer" }}>Approve</button><button type="button" onClick={() => { setApproval("Rejected"); setNotice("Draft rejected; revise it before resubmitting."); }} style={{ padding: "10px 14px", cursor: "pointer" }}>Reject</button></div></article>
-      </> : <article style={cardStyle}><p style={{ fontSize: 12, color: "#b18b4a", fontWeight: 700, letterSpacing: 1.3 }}>WORKSPACE MODULE</p><h2>{active}</h2><p>This section is active. Connect your organization data to populate its workspace.</p><button type="button" onClick={() => setNotice(active + " is ready for your organization data.")} style={{ background: "#17345c", color: "white", border: 0, borderRadius: 7, padding: "11px 15px", cursor: "pointer" }}>Open {active}</button></article>}
-    </section>
-  </main>;
+  const pending = posts.filter((post) => post.status === "Pending approval");
+  const approved = posts.filter((post) => post.status === "Approved");
+  const panel = () => {
+    if (active === "Overview") return <><div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(150px,1fr))", gap: 16 }}>
+      {[["Drafts", posts.filter((p) => p.status === "Draft").length], ["Awaiting approval", pending.length], ["Approved", approved.length], ["Scheduled", posts.filter((p) => p.status === "Scheduled").length]].map(([label, value]) => <article key={String(label)} style={card}><div style={{ color: "#617187" }}>{label}</div><strong style={{ display: "block", fontSize: 32, marginTop: 10 }}>{value}</strong></article>)}
+    </div><article style={{ ...card, marginTop: 18 }}><p style={{ color: "#b18b4a", fontWeight: 700, fontSize: 12 }}>START HERE</p><h2>Create your first marketing post</h2><p>Use “Create content” to make a draft, edit it in the Content Calendar, and send it through approval.</p><button type="button" onClick={addPost} style={button}>Create a draft</button></article></>;
+    if (active === "Content Calendar") return <article style={card}><h2>Content Calendar</h2><p>Create and manage your COBS marketing posts.</p><label>Post title<input value={title} onChange={(e) => setTitle(e.target.value)} style={{ display: "block", width: "100%", margin: "7px 0 14px", padding: 10 }} /></label><label>Post copy<textarea value={body} onChange={(e) => setBody(e.target.value)} style={{ display: "block", width: "100%", minHeight: 90, margin: "7px 0 14px", padding: 10 }} /></label><button type="button" onClick={addPost} style={button}>Save as draft</button><div style={{ marginTop: 22 }}>{posts.length === 0 ? <p>No posts yet. Fill in the form and save your first draft.</p> : posts.map((post) => <article key={post.id} style={{ borderTop: "1px solid #dce3ea", padding: "16px 0" }}><strong>{post.title}</strong><p>{post.body}</p><small>Status: {post.status}</small><div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>{post.status === "Draft" && <button type="button" onClick={() => { updatePost(post.id, "Pending approval"); setNotice("Post sent to the Approvals queue."); }} style={button}>Send for approval</button>}{post.status === "Pending approval" && <span>Waiting for approval</span>}{post.status === "Approved" && <button type="button" onClick={() => { updatePost(post.id, "Scheduled"); setNotice("Post scheduled. You can review it in Scheduler."); }} style={button}>Schedule post</button>}</div></article>)}</div></article>;
+    if (active === "Approvals") return <article style={card}><h2>Approval Queue</h2>{pending.length === 0 ? <p>No posts are waiting for approval.</p> : pending.map((post) => <article key={post.id} style={{ borderTop: "1px solid #dce3ea", padding: "16px 0" }}><strong>{post.title}</strong><p>{post.body}</p><button type="button" onClick={() => { updatePost(post.id, "Approved"); setNotice("Post approved. It can now be scheduled."); }} style={button}>Approve</button><button type="button" onClick={() => { updatePost(post.id, "Rejected"); setNotice("Post returned for revision."); }} style={{ ...button, marginLeft: 8, background: "#8f3131" }}>Return for revision</button></article>)}</article>;
+    if (active === "Campaign Planner") return <article style={card}><h2>Campaign Planner</h2><label>Campaign name<input value={campaign} onChange={(e) => setCampaign(e.target.value)} style={{ display: "block", width: "100%", margin: "7px 0 14px", padding: 10 }} /></label><button type="button" onClick={() => { if (campaign.trim()) { setCampaigns((items) => [campaign, ...items]); setNotice("Campaign added to your plan."); } }} style={button}>Add campaign</button>{campaigns.map((item) => <p key={item} style={{ borderTop: "1px solid #dce3ea", paddingTop: 12 }}>Campaign: <strong>{item}</strong></p>)}</article>;
+    if (active === "Creative Studio") return <article style={card}><h2>Creative Studio</h2><p>Start with a practical construction marketing message, then edit it in your calendar.</p><button type="button" onClick={() => { setTitle("Build with confidence — choose COBS Buildmasters"); setBody("From durable concrete blocks to fast floors, COBS helps construction projects move forward."); setActive("Content Calendar"); setNotice("A suggested post has been added to the editor. Adjust the wording and save it as a draft."); }} style={button}>Generate post idea</button></article>;
+    if (active === "Scheduler") return <article style={card}><h2>Scheduler</h2>{approved.length === 0 ? <p>Approve a post first, then it will appear here ready to schedule.</p> : approved.map((post) => <p key={post.id}><strong>{post.title}</strong> — ready to schedule from the Content Calendar.</p>)}<p>{posts.filter((p) => p.status === "Scheduled").length} post(s) scheduled.</p></article>;
+    if (active === "Analytics") return <article style={card}><h2>Analytics</h2><p>Publishing analytics will appear here after you connect social accounts and schedule posts.</p><p>Current workspace: {posts.length} post(s), {approved.length} approved.</p></article>;
+    if (active === "Leads") return <article style={card}><h2>Leads</h2><p>Your construction enquiries and marketing leads will appear here once lead capture is connected.</p></article>;
+    if (active === "Knowledge Base") return <article style={card}><h2>Knowledge Base</h2><p>Add your product details, project photos, pricing guidance, and brand voice to improve future content.</p></article>;
+    return <article style={card}><h2>Settings</h2><p>Supabase is connected. The next step for lasting team data is enabling secure sign-in and saving these drafts to your organization.</p></article>;
+  };
+  return <main style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f4f6f8", color: "#17345c" }}><aside style={{ position: "fixed", inset: "0 auto 0 0", width: 250, background: "#102f5b", padding: 28, color: "white" }}><div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>COBS</div><div style={{ fontSize: 13, letterSpacing: 2 }}>BUILDMASTERS LTD</div><div style={{ marginTop: 18, color: "#d9bc7b", fontSize: 11, letterSpacing: 1.5 }}>MARKETING AGENT</div><nav aria-label="Workspace sections" style={{ marginTop: 34 }}>{modules.map((item) => <button key={item} type="button" onClick={() => setActive(item)} style={{ display: "block", width: "100%", textAlign: "left", border: 0, margin: "4px 0", padding: "10px 12px", borderRadius: 6, cursor: "pointer", color: "#e0e9f5", background: active === item ? "#295182" : "transparent", fontSize: 15 }}>{item}</button>)}</nav></aside><section style={{ marginLeft: 250, padding: 44, maxWidth: 1300 }}><header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}><div><p style={{ color: "#b18b4a", fontWeight: 700, fontSize: 12, letterSpacing: 1.4 }}>PRIVATE WORKSPACE</p><h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1></div><button type="button" onClick={addPost} style={button}>+ Create content</button></header><div role="status" style={{ background: "white", borderLeft: "4px solid #19865c", padding: 16, borderRadius: 5, margin: "25px 0" }}>● {notice}</div>{panel()}</section></main>;
 }
