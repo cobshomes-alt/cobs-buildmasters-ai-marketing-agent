@@ -6,7 +6,7 @@ export default async function Page() {
   let connected = false;
   if (url && key) {
     try {
-      const response = await fetch(url + "/rest/v1/", { headers: { apikey: key }, cache: "no-store" });
+      const response = await fetch(url + "/rest/v1/organizations?select=id&limit=1", { headers: { apikey: key }, cache: "no-store" });
       connected = response.ok;
     } catch {}
   }
