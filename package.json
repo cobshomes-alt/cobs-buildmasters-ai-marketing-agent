@@ -1,0 +1,8 @@
+{
+  "name": "cobs-buildmasters-ai-marketing-agent",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": { "dev": "next dev", "build": "next build" },
+  "dependencies": { "next": "^15.2.0", "react": "^19.0.0", "react-dom": "^19.0.0", "@supabase/supabase-js": "^2.49.1" },
+  "devDependencies": { "typescript": "^5.8.2", "@types/node": "^22.13.10", "@types/react": "^19.0.10" }
+}
