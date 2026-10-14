@@ -1,26 +1,18 @@
-# Technology Stack
+# Implemented technology stack
 
-| Area | Technology | Purpose |
-|---|---|---|
-| Frontend | Next.js 15, React 19, TypeScript | Responsive private marketing workspace |
-| Styling | CSS with COBS navy, grey and gold tokens | Brand-consistent mobile and desktop UI |
-| Database | Supabase PostgreSQL | Campaigns, posts, versions, approvals, leads and analytics |
-| Authentication | Supabase Auth | Owner, marketer and viewer access |
-| Security | Supabase Row-Level Security | Organization-scoped data and owner-only publishing controls |
-| Media | Supabase Storage | Brand assets and company media |
-| AI | OpenAI API (server-side) | Captions, scripts, calendar ideas and campaign plans |
-| Publishing | Official Meta Graph APIs | Eligible Facebook and Instagram publishing and insights |
-| Hosting | Vercel | Next.js hosting and server functions |
-| Source control | GitHub | Public code repository |
+| Area | Implementation |
+| --- | --- |
+| Application | Existing Next.js 15 App Router, React 19, strict TypeScript |
+| Styling | Responsive CSS, navy, gold, white and charcoal; no external font service |
+| Authentication | Supabase email/password; owner profile checked by APIs and database policies |
+| Database | `cobs_profiles`, `cobs_posts`, `cobs_campaigns`, `cobs_leads`, `cobs_media_assets` |
+| Storage | Private `cobs-media` bucket; original JPEG, PNG, WebP, MP4 and MOV files up to 50 MiB |
+| AI | Server-side OpenAI Responses API; authenticated owner only; no fallback disguised as AI |
+| Approval | PostgreSQL transition trigger, approval actor/time, edit invalidation, optimistic concurrency |
+| Tests | Vitest, Testing Library, PGlite PostgreSQL, Playwright with local Chrome |
 
-## Safety controls
+Drafts, campaigns, leads and media metadata are database records. Supabase Auth may use browser storage for its session token; marketing records do not use localStorage.
 
-- Every post has a version and an approval state.
-- Any content edit clears approval and moves it back to Draft.
-- Only an Approved current version can be queued.
-- The server checks approval again immediately before publishing.
-- Browser code never receives OpenAI, Meta or Supabase service-role secrets.
+No Meta publishing, social account connections, analytics ingestion, post version history, team roles, multi-organisation workspace, background publisher or actual date-based scheduler is implemented. The existing Scheduled status means ready for **manual** publishing.
 
-## Data tables
-
-`organizations`, `profiles`, `brand_records`, `media_assets`, `campaigns`, `posts`, `post_versions`, `approvals`, `social_accounts`, `publish_jobs`, `analytics_snapshots`, `leads`, and `audit_logs`.
+API clients use the public Supabase key plus the user's verified bearer token, preserving RLS. No Supabase service-role key is required. File uploads go directly to Storage after authenticated preparation; completion checks stored size, MIME type and the initial file signature before creating a library record. Signature checks are basic format validation, not a complete video decoder or malware scanner.
