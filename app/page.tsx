@@ -22,3 +22,5 @@ export default async function Page() {
     </section>
   </main>;
 }
+
+// Trigger deployment after linking this repository to Vercel.
