@@ -18,6 +18,17 @@ export default function Page() {
   const [generating, setGenerating] = useState(false);
   const [campaign, setCampaign] = useState("");
   const [campaigns, setCampaigns] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      setPosts(JSON.parse(localStorage.getItem("cobs-posts") || "[]"));
+      setCampaigns(JSON.parse(localStorage.getItem("cobs-campaigns") || "[]"));
+    } catch { setNotice("Saved workspace could not be loaded."); }
+    finally { setLoaded(true); }
+  }, []);
+  useEffect(() => {
+    if (loaded) { localStorage.setItem("cobs-posts", JSON.stringify(posts)); localStorage.setItem("cobs-campaigns", JSON.stringify(campaigns)); }
+  }, [posts, campaigns, loaded]);
   const saveDraft = (nextTitle = title, nextBody = body, source?: Post["source"]) => {
     const post: Post = { id: Date.now(), title: nextTitle.trim() || "Untitled COBS post", body: nextBody.trim() || "Add your campaign message here.", status: "Draft", source };
     setPosts((items) => [post, ...items]); setActive("Content Calendar"); return post;
@@ -52,5 +63,5 @@ export default function Page() {
     if (active === "Knowledge Base") return <article style={card}><h2>Brand Knowledge Base</h2><p>Use verified COBS products, services, contact details and approved claims for safe content generation.</p></article>;
     return <article style={card}><h2>Settings</h2><p>Supabase is connected. Add a secure OPENAI_API_KEY in Vercel to activate live AI generation.</p></article>;
   };
-  return <main style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f4f6f8", color: "#17345c" }}><aside style={{ position: "fixed", inset: "0 auto 0 0", width: 250, background: "#102f5b", padding: 28, color: "white" }}><div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>COBS</div><div style={{ fontSize: 13, letterSpacing: 2 }}>BUILDMASTERS LTD</div><div style={{ marginTop: 18, color: "#d9bc7b", fontSize: 11, letterSpacing: 1.5 }}>MARKETING AGENT</div><nav aria-label="Workspace sections" style={{ marginTop: 34 }}>{modules.map((item) => <button key={item} type="button" onClick={() => setActive(item)} style={{ display: "block", width: "100%", textAlign: "left", border: 0, margin: "4px 0", padding: "10px 12px", borderRadius: 6, cursor: "pointer", color: "#e0e9f5", background: active === item ? "#295182" : "transparent", fontSize: 15 }}>{item}</button>)}</nav></aside><section style={{ marginLeft: 250, padding: 44, maxWidth: 1300 }}><header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}><div><p style={{ color: "#b18b4a", fontWeight: 700, fontSize: 12, letterSpacing: 1.4 }}>PRIVATE WORKSPACE</p><h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1></div><button type="button" onClick={() => { saveDraft(); setNotice("Manual draft created."); }} style={button}>+ Create content</button></header><div role="status" style={{ background: "white", borderLeft: "4px solid #19865c", padding: 16, borderRadius: 5, margin: "25px 0" }}>● {notice}</div>{panel()}</section></main>;
+  return <main style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f4f6f8", color: "#17345c" }}><aside style={{ position: "fixed", inset: "0 auto 0 0", width: 250, background: "#102f5b", padding: 28, color: "white" }}><div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>COBS</div><div style={{ fontSize: 13, letterSpacing: 2 }}>BUILDMASTERS LTD</div><div style={{ marginTop: 18, color: "#d9bc7b", fontSize: 11, letterSpacing: 1.5 }}>MARKETING AGENT</div><nav aria-label="Workspace sections" style={{ marginTop: 34 }}>{modules.map((item) => <button key={item} type="button" onClick={() => setActive(item)} style={{ display: "block", width: "100%", textAlign: "left", border: 0, margin: "4px 0", padding: "10px 12px", borderRadius: 6, cursor: "pointer", color: "#e0e9f5", background: active === item ? "#295182" : "transparent", fontSize: 15 }}>{item}</button>)}</nav></aside><section style={{ marginLeft: 250, padding: 44, maxWidth: 1300 }}><header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}><div><p style={{ color: "#b18b4a", fontWeight: 700, fontSize: 12, letterSpacing: 1.4 }}>PRIVATE WORKSPACE</p><h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1></div><button type="button" onClick={() => { setActive("Content Calendar"); setNotice("Draft editor is ready. Write or generate content, then save it."); }} style={button}>+ Create content</button></header><div role="status" style={{ background: "white", borderLeft: "4px solid #19865c", padding: 16, borderRadius: 5, margin: "25px 0" }}>● {notice}</div>{panel()}</section></main>;
 }
