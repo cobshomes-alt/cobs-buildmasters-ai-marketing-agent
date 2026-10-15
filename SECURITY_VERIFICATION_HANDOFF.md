@@ -1,5 +1,7 @@
 # Security and re-authentication handoff
 
+Follow-up: the subsequently authorized populated post-P1 campaign/draft/approval/media workflow and separately approved exact-item cleanup passed; see [POST_P1_LIVE_ACCEPTANCE.md](POST_P1_LIVE_ACCEPTANCE.md). The phase-specific incomplete status below is retained as historical context.
+
 15 October 2026. Branch: `develop/dashboard-media`. This handoff accompanies the reviewed security/documentation/test changes; historical reports retain the results and authorization boundaries of their individual phases.
 
 ## Current state

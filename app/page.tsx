@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 
+import CreativeDirector from "./components/creative-director";
+import { isPlanningRecord } from "../lib/creative-plan";
 import Overview from "./components/overview";
 import PostAttachment from "./components/post-attachment";
 import MediaLibrary, { type Asset } from "./components/media-library";
@@ -19,6 +21,7 @@ type Post = {
   media_id?: string | null;
   campaign_id?: string | null;
   updated_at?: string;
+  approved_at?: string | null;
 };
 type Campaign = { id: string; name: string; created_at?: string };
 const modules = [
@@ -517,10 +520,11 @@ export default function Page() {
       </main>
     );
 
-  const drafts = posts.filter((p) => p.status === "Draft"),
-    pending = posts.filter((p) => p.status === "Pending approval"),
-    approved = posts.filter((p) => p.status === "Approved"),
-    scheduled = posts.filter((p) => p.status === "Scheduled");
+  const contentPosts = posts.filter((p) => !isPlanningRecord(p));
+  const drafts = contentPosts.filter((p) => p.status === "Draft"),
+    pending = contentPosts.filter((p) => p.status === "Pending approval"),
+    approved = contentPosts.filter((p) => p.status === "Approved"),
+    scheduled = contentPosts.filter((p) => p.status === "Scheduled");
   const panel = () => {
     if (active === "Media Library" && supabase)
       return (
@@ -543,43 +547,60 @@ export default function Page() {
             media: assets.length,
             campaigns: campaigns.length,
           }}
-          recent={posts}
+          recent={contentPosts}
           navigate={setActive}
         />
       );
-    if (active === "Creative Studio")
+    if (active === "Creative Studio" && supabase && session)
       return (
-        <article style={card}>
-          <h2>AI Content Generator</h2>
-          <p>Describe the product, service or campaign you want to promote.</p>
-          <label>
-            Topic
-            <input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              style={input}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={generating}
-            onClick={generate}
-            style={{ ...button, opacity: generating ? 0.65 : 1 }}
-          >
-            {generating ? "Generating…" : "Generate AI post"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void createSampleCaption()}
-            style={{ ...button, marginLeft: 8, background: "#617187" }}
-          >
-            Create sample caption
-          </button>
-          <p style={{ color: "#617187" }}>
-            AI output is labelled AI generated. Sample captions are clearly
-            labelled and are never presented as AI output.
-          </p>
-        </article>
+        <CreativeDirector
+          client={supabase}
+          session={session}
+          campaigns={campaigns}
+          posts={posts}
+          assets={assets}
+          navigate={setActive}
+          onSaved={(post) =>
+            setPosts((current) => [
+              post,
+              ...current.filter((p) => p.id !== post.id),
+            ])
+          }
+        >
+          <article style={card}>
+            <h2>AI Content Generator</h2>
+            <p>
+              Describe the product, service or campaign you want to promote.
+            </p>
+            <label>
+              Topic
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                style={input}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={generating}
+              onClick={generate}
+              style={{ ...button, opacity: generating ? 0.65 : 1 }}
+            >
+              {generating ? "Generating…" : "Generate AI post"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void createSampleCaption()}
+              style={{ ...button, marginLeft: 8, background: "#617187" }}
+            >
+              Create sample caption
+            </button>
+            <p style={{ color: "#617187" }}>
+              AI output is labelled AI generated. Sample captions are clearly
+              labelled and are never presented as AI output.
+            </p>
+          </article>
+        </CreativeDirector>
       );
     if (active === "Content Calendar")
       return (
@@ -657,10 +678,10 @@ export default function Page() {
             {saving ? "Saving…" : editing ? "Save changes" : "Save as draft"}
           </button>
           <div style={{ marginTop: 24 }}>
-            {posts.length === 0 ? (
+            {contentPosts.length === 0 ? (
               <p>No content yet. Create a draft or use Creative Studio.</p>
             ) : (
-              posts.map((post) => (
+              contentPosts.map((post) => (
                 <article
                   key={post.id}
                   style={{ borderTop: "1px solid #dce3ea", padding: "16px 0" }}

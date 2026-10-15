@@ -1,5 +1,10 @@
 import { beforeEach, afterEach, test, expect, vi } from "vitest";
 import { POST as generate } from "../app/api/generate/route";
+import {
+  POST as creative,
+  GET as creativeStatus,
+} from "../app/api/creative-director/route";
+import { samplePlan, type Brief } from "../lib/creative-plan";
 import { POST as media } from "../app/api/media/route";
 import { matchesSignature, validateMedia, MAX_MEDIA_BYTES } from "../lib/media";
 import {
@@ -61,6 +66,107 @@ const request = (body: unknown, auth = true) =>
     },
     body: JSON.stringify(body),
   });
+
+const planningBrief: Brief = {
+  topic: "Film factory",
+  project: "",
+  evidence: "",
+  period: "week",
+  style: "Educational",
+  length: "15–30 seconds",
+  platforms: ["Instagram"],
+  startDate: "2026-10-15",
+};
+test("creative director enforces owner authentication and reports missing AI honestly", async () => {
+  expect((await creative(request(planningBrief, false))).status).toBe(401);
+  mocks.role = "member";
+  expect((await creative(request(planningBrief))).status).toBe(403);
+  expect((await creativeStatus(request({}))).status).toBe(403);
+  mocks.role = "owner";
+  expect(await (await creativeStatus(request({}))).json()).toEqual({
+    configured: false,
+  });
+  expect((await creative(request(planningBrief))).status).toBe(503);
+  expect(
+    (await creative(request({ ...planningBrief, platforms: [] }))).status,
+  ).toBe(400);
+});
+test("creative AI uses server-side structured output and rejects malformed or failed responses", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "fake-test-key");
+  const provider = vi.fn(async () =>
+    Response.json({ output_text: JSON.stringify(samplePlan(planningBrief)) }),
+  );
+  vi.stubGlobal("fetch", provider);
+  const result = await creative(request(planningBrief));
+  expect(result.status).toBe(200);
+  expect((await result.json()).source).toBe("ai");
+  const options = provider.mock.calls[0] as unknown as [string, RequestInit];
+  const payload = JSON.parse(options[1].body as string);
+  expect(payload.store).toBe(false);
+  expect(payload.text.format.strict).toBe(true);
+  expect(payload.max_output_tokens).toBe(3500);
+  provider.mockImplementation(async () =>
+    Response.json({ output_text: "not a plan" }),
+  );
+  expect((await creative(request(planningBrief))).status).toBe(502);
+  provider.mockImplementation(async () => Response.json({}, { status: 401 }));
+  const rejected = await creative(request(planningBrief));
+  expect(await rejected.text()).not.toContain("fake-test-key");
+  expect(rejected.status).toBe(502);
+});
+
+test("creative AI rejects calendar mismatch and incomplete output without substituting a sample", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "fake-test-key");
+  const provider = vi.fn(async () =>
+    Response.json({
+      output_text: JSON.stringify(
+        samplePlan({ ...planningBrief, period: "month" }),
+      ),
+    }),
+  );
+  vi.stubGlobal("fetch", provider);
+  expect((await creative(request(planningBrief))).status).toBe(502);
+  provider.mockImplementation(async () =>
+    Response.json({ status: "incomplete" }),
+  );
+  expect((await creative(request(planningBrief))).status).toBe(502);
+  provider.mockImplementation(async () => Response.json({}, { status: 429 }));
+  expect(await (await creative(request(planningBrief))).text()).toContain(
+    "quota or rate limit",
+  );
+});
+
+test("creative AI guards overlapping owner requests and releases the guard after completion", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "fake-test-key");
+  let complete!: (response: Response) => void;
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => {
+      started();
+      return new Promise<Response>((resolve) => {
+        complete = resolve;
+      });
+    }),
+  );
+  const first = creative(request(planningBrief));
+  await ready;
+  expect((await creative(request(planningBrief))).status).toBe(429);
+  complete(
+    Response.json({ output_text: JSON.stringify(samplePlan(planningBrief)) }),
+  );
+  expect((await first).status).toBe(200);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ output_text: JSON.stringify(samplePlan(planningBrief)) }),
+    ),
+  );
+  expect((await creative(request(planningBrief))).status).toBe(200);
+});
 test("API denies anonymous, expired and nonowner sessions", async () => {
   expect((await generate(request({}, false))).status).toBe(401);
   expect((await media(request({}, false))).status).toBe(401);
