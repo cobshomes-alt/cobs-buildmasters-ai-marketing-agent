@@ -65,7 +65,7 @@ test("owner reauthenticates from Media Library without an Overview readiness ass
   ).toHaveCount(0);
   await expect(
     page.getByText("Secure Supabase workspace connected.", { exact: false }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await openWorkspaceSection(page, "Overview");
   expect(signIns).toBe(1);
   expect(databaseWrites).toEqual([]);

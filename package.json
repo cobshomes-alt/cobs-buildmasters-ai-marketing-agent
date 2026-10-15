@@ -2,6 +2,9 @@
   "name": "cobs-buildmasters-ai-marketing-agent",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.13.0 <23"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "media:worker": "node scripts/media-worker.mjs",
     "format:check": "prettier --check app lib tests package.json tsconfig.json vitest.config.mts playwright.config.ts"
   },
   "overrides": {
@@ -21,6 +25,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@electric-sql/pglite": "^0.5.10",
     "@playwright/test": "^1.64.1",
     "@testing-library/react": "^16.3.3",

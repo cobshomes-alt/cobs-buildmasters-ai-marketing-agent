@@ -10,6 +10,11 @@
 | AI | Server-side OpenAI Responses API; authenticated owner only; no fallback disguised as AI |
 | Approval | PostgreSQL transition trigger, approval actor/time, edit invalidation, optimistic concurrency |
 | Tests | Vitest, Testing Library, PGlite PostgreSQL, Playwright with local Chrome |
+| Runtime | Node.js 22 LTS, `>=22.13.0 <23` |
+| Media rendering | Existing owner-operated FFmpeg/ffprobe worker, built-in Node SQLite queue, H.264/AAC MP4 and PNG export; bounded combined hard-cut exports and timed captions |
+| Automatic editing | Server-probed media metadata, deterministic rule-based edit plans and owner-reviewed editable timeline; no visual AI analysis or paid calls |
+
+Multi-asset editing project tables/functions are an **unapplied source proposal** in `supabase/proposals/`, not part of the existing production database above. Cloud timeline saving and durable complete-plan storage remain pending separate approval. Render queues and outputs stay in ignored local `.tools`; no provider credentials are stored in that queue. The current schema review documents validation and recovery work required before production execution.
 
 Drafts, campaigns, leads and media metadata are database records. Supabase Auth may use browser storage for its session token; marketing records do not use localStorage.
 

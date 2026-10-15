@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { waitForOwnerWorkspace } from "./workspace";
 import { decodePlan } from "../../lib/creative-plan";
+import { writeFileSync } from "node:fs";
+import AxeBuilder from "@axe-core/playwright";
 
 test("creative director plans, reloads, hands off to Draft and fits mobile (mock services only)", async ({
   page,
 }) => {
-  test.setTimeout(90000);
+  test.setTimeout(240000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const owner = "11111111-1111-4111-8111-111111111111";
@@ -119,10 +121,37 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
   await page
     .getByRole("button", { name: "Creative Studio", exact: true })
     .click();
-  await expect(page.getByText(/Live AI unavailable/)).toBeVisible();
   await page
     .getByRole("button", { name: "Production brief", exact: true })
     .click();
+  if (process.env.COBS_CAPTURE_BEFORE === "1") {
+    const panel = page.locator(".verified-activities");
+    await panel.screenshot({
+      path: ".tools/screenshots/ui-before-verified-activities.png",
+    });
+    writeFileSync(
+      ".tools/ui-before-activities.json",
+      JSON.stringify(
+        await panel.evaluate((el) => ({
+          panel: {
+            background: getComputedStyle(el).backgroundColor,
+            color: getComputedStyle(el).color,
+          },
+          labels: [...el.querySelectorAll("label")].map((l) => ({
+            text: l.textContent?.trim(),
+            color: getComputedStyle(l).color,
+            background: getComputedStyle(l).backgroundColor,
+          })),
+          helper: [...el.querySelectorAll("p")].map((p) => ({
+            color: getComputedStyle(p).color,
+            text: p.textContent?.trim(),
+          })),
+        })),
+        null,
+        2,
+      ),
+    );
+  }
   await expect(
     page.getByRole("button", { name: "Generate live AI plan" }),
   ).toBeDisabled();
@@ -285,4 +314,112 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
     page.getByText("I want to film my concrete block factory", { exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
+  const audit: unknown[] = [];
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const section of [
+      "Overview",
+      "Campaign Planner",
+      "Content Calendar",
+      "Creative Studio",
+      "Media Library",
+      "Media Studio",
+      "Approvals",
+      "Scheduler",
+      "Leads",
+      "Settings",
+    ]) {
+      await page
+        .getByRole("navigation", { name: "Workspace sections" })
+        .getByRole("button", { name: section, exact: true })
+        .click();
+      await expect(page.locator(".workspace")).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      const slug = section.toLowerCase().replaceAll(" ", "-");
+      await page.screenshot({
+        path: `.tools/screenshots/audit-${width}-${slug}.png`,
+        fullPage: true,
+      });
+      audit.push({ width, section, overflow: false });
+      const accessibility = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze();
+      audit.push({
+        width,
+        section,
+        violations: accessibility.violations.map((v) => ({
+          id: v.id,
+          impact: v.impact,
+          nodes: v.nodes.map((n) => ({
+            target: n.target,
+            summary: n.failureSummary,
+          })),
+        })),
+        incomplete: accessibility.incomplete.map((v) => v.id),
+      });
+      expect(accessibility.violations).toEqual([]);
+      if (section === "Creative Studio") {
+        for (const tab of [
+          "Creative dashboard",
+          "Production brief",
+          "Storyboard",
+          "Filming checklist",
+          "Scripts & captions",
+          "Ideas & calendar",
+          "Original media",
+          "Production workflow",
+        ]) {
+          await page
+            .getByRole("navigation", { name: "Creative Director sections" })
+            .getByRole("button", { name: tab, exact: true })
+            .click();
+          expect(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+          ).toBe(true);
+          await page.screenshot({
+            path: `.tools/screenshots/audit-${width}-creative-${tab.toLowerCase().replace(/[^a-z]+/g, "-")}.png`,
+            fullPage: true,
+          });
+          const tabAccessibility = await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze();
+          audit.push({
+            width,
+            tab,
+            violations: tabAccessibility.violations.map((v) => ({
+              id: v.id,
+              nodes: v.nodes.map((n) => n.failureSummary),
+            })),
+            incomplete: tabAccessibility.incomplete.map((v) => v.id),
+          });
+          // Persist progress even if a subsequent accessibility assertion fails.
+          writeFileSync(
+            ".tools/ui-audit-results.json",
+            JSON.stringify(audit, null, 2),
+          );
+          expect(tabAccessibility.violations).toEqual([]);
+          if (tab === "Production brief") {
+            const panel = page.locator(".verified-activities");
+            const styles = await panel.evaluate((el) => ({
+              background: getComputedStyle(el).backgroundColor,
+              label: getComputedStyle(el.querySelector("label")!).color,
+              helper: getComputedStyle(el.querySelector("p")!).color,
+            }));
+            expect(styles.background).toBe("rgb(25, 43, 64)");
+            await expect(page.locator("#creative-ai-help")).toHaveText(
+              "AI generation unavailable. Use a sample plan.",
+            );
+            audit.push({ width, tab, styles });
+          }
+        }
+      }
+    }
+  }
+  writeFileSync(".tools/ui-audit-results.json", JSON.stringify(audit, null, 2));
 });

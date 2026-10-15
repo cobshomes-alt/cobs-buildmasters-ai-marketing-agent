@@ -6,6 +6,12 @@ import {
 } from "../app/api/creative-director/route";
 import { samplePlan, type Brief } from "../lib/creative-plan";
 import { POST as media } from "../app/api/media/route";
+import { POST as studio, GET as studioStatus } from "../app/api/studio/route";
+import {
+  POST as projects,
+  GET as projectList,
+} from "../app/api/edit-projects/route";
+import { newTimeline } from "../lib/timeline";
 import { matchesSignature, validateMedia, MAX_MEDIA_BYTES } from "../lib/media";
 import {
   extractGeneratedText,
@@ -77,6 +83,59 @@ const planningBrief: Brief = {
   platforms: ["Instagram"],
   startDate: "2026-10-15",
 };
+test("multi-asset project API retains verified owner gate and validates saves", async () => {
+  expect((await projectList(request({}, false))).status).toBe(401);
+  expect((await projects(request({}, false))).status).toBe(401);
+  mocks.role = "member";
+  expect((await projects(request({ action: "save" }))).status).toBe(403);
+  mocks.role = "owner";
+  expect(
+    (await projects(request({ action: "save", document: {}, revision: 0 })))
+      .status,
+  ).toBe(400);
+  mocks.client.rpc = vi.fn(async () => ({
+    data: { id: "saved", revision: 1 },
+    error: null,
+  }));
+  const doc = newTimeline();
+  expect(
+    (await projects(request({ action: "save", document: doc, revision: 0 })))
+      .status,
+  ).toBe(200);
+  expect(mocks.client.rpc).toHaveBeenCalledWith("cobs_save_edit_project", {
+    document: doc,
+    expected_revision: 0,
+  });
+  mocks.client.rpc = vi.fn(async () => ({
+    data: null,
+    error: { code: "40001" },
+  }));
+  expect(
+    (await projects(request({ action: "save", document: doc, revision: 1 })))
+      .status,
+  ).toBe(409);
+});
+
+test("studio requires a verified owner for status, downloads and exports, and fails closed when disabled", async () => {
+  vi.stubEnv("COBS_LOCAL_RENDER_ENABLED", "");
+  expect((await studio(request({ action: "render" }, false))).status).toBe(401);
+  expect(
+    (
+      await studioStatus(
+        new Request("http://localhost/api/studio?download=anything"),
+      )
+    ).status,
+  ).toBe(401);
+  mocks.role = "member";
+  expect((await studio(request({ action: "render" }))).status).toBe(403);
+  expect((await studioStatus(request({}))).status).toBe(403);
+  mocks.role = "owner";
+  expect((await studio(request({ action: "render" }))).status).toBe(503);
+  expect(await (await studioStatus(request({}))).json()).toMatchObject({
+    ready: false,
+    jobs: [],
+  });
+});
 test("creative director enforces owner authentication and reports missing AI honestly", async () => {
   expect((await creative(request(planningBrief, false))).status).toBe(401);
   mocks.role = "member";

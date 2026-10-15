@@ -141,7 +141,7 @@ test("sample planning saves campaign, checklist and media choice then reopens fr
   const user = userEvent.setup();
   render(<Workspace />);
   await user.click(screen.getByRole("button", { name: "Production brief" }));
-  await screen.findByText(/Live AI unavailable/);
+  await screen.findByText(/AI generation unavailable/);
   expect(
     (
       screen.getByRole("button", {
@@ -431,7 +431,7 @@ test("failed AI regeneration retains the saved storyboard and never writes a sam
   render(<Workspace />);
   await user.click(screen.getByRole("button", { name: "Saved original" }));
   await user.click(screen.getByRole("button", { name: "Production brief" }));
-  await screen.findByText(/Live AI configured/);
+  await screen.findByText(/AI requests use your configured API quota/);
   await user.click(
     screen.getByRole("button", { name: "Generate live AI plan" }),
   );

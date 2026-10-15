@@ -16,7 +16,7 @@ These features have local automated coverage. They do not establish that your ho
 
 ## Local setup
 
-Use Node.js 22.12 or newer (Node 22 LTS was used for verification).
+Use Node.js 22.13 or newer within Node 22 LTS (`>=22.13.0 <23`, as specified in `package.json`). The local renderer uses Node's built-in SQLite module.
 
 ```powershell
 npm ci
@@ -66,6 +66,16 @@ To replace media, upload a new original and edit the post attachment. The databa
 Preview URLs expire after one hour; Refresh renews them. Supported originals are JPEG, PNG, WebP, MP4 and modern MOV, up to 50 MiB each. Video playback depends on the browser and codec; Open original provides access when inline playback is unsupported. Uploads require the page to remain open and are not resumable. Each post supports one attachment.
 
 ## Verification
+
+### Current Creative Director and Media Studio milestones
+
+The existing application includes the original company logo, corrected desktop/mobile theme, Creative Director planning, batch media import, an editable multi-source timeline, manual timed captions and bounded real MP4 rendering. **Automatic Editing Director is free rule-based planning**, not semantic visual AI: select existing originals, inspect measured metadata, review the proposed scenes and explicitly apply them to an unsaved editable timeline. No AI generation request is made by that planning path.
+
+Combined rendering supports up to 12 clips, six unique originals, 60 seconds and 50 MiB captured inputs/output. Real local tests combine three videos and three photographs and verify full Chrome playback. Local Windows rendering requires the FFmpeg/ffprobe tools, `COBS_LOCAL_RENDER_ENABLED=1` and `npm run media:worker`; this is not a deployed cloud worker.
+
+Multi-asset cloud saving remains unavailable until a separately reviewed schema is approved. SQL under `supabase/proposals/` is source code only, **not authorized for production execution**. Its current validator limitation and recovery prerequisites are documented in [the schema review](supabase/proposals/PREMIUM_MEDIA_SCHEMA_REVIEW.md). Do not run `db push`, `db reset`, migration repair or P2 as part of setup.
+
+See [Automatic Editing Director](AI_AUTOMATIC_EDITING_DIRECTOR_REPORT.md), [actual rendering verification](MEDIA_STUDIO_TECHNICAL_VERIFICATION.md) and [interface corrections](COBS_COMPLETE_UI_AUDIT_AND_REDESIGN.md). Hosted integration checks and unfinished features are explicitly distinguished from local/mocked results.
 
 See the [security and re-authentication handoff](SECURITY_VERIFICATION_HANDOFF.md) for current results, pending work and privacy exclusions. P1 is applied; P2 remains pending. The [security proposal directory](supabase/security-proposals/README.md) contains reviewed reference patches, not automatically executable migrations.
 

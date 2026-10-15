@@ -4,9 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 
 import CreativeDirector from "./components/creative-director";
+import MediaStudio from "./components/media-studio";
+import SocialPostPreview from "./components/social-post-preview";
+import { isEditingRecord } from "../lib/studio-model.mjs";
 import { isPlanningRecord } from "../lib/creative-plan";
 import BrandLogo from "./components/brand-logo";
 import Overview from "./components/overview";
+import SystemStatus from "./components/system-status";
 import PostAttachment from "./components/post-attachment";
 import MediaLibrary, { type Asset } from "./components/media-library";
 
@@ -31,21 +35,22 @@ const modules = [
   "Content Calendar",
   "Creative Studio",
   "Media Library",
+  "Media Studio",
   "Approvals",
   "Scheduler",
   "Leads",
   "Settings",
 ];
 const card = {
-  background: "#fff",
+  background: "var(--surface)",
   borderRadius: 10,
   padding: 22,
   boxShadow: "0 8px 32px #102f5b08",
-  border: "1px solid #e3e8ef",
+  border: "1px solid var(--line)",
 };
 const button = {
-  background: "#17345c",
-  color: "#fff",
+  background: "var(--navy)",
+  color: "var(--ink)",
   border: 0,
   borderRadius: 7,
   padding: "10px 14px",
@@ -155,7 +160,7 @@ export default function Page() {
     setRole("owner");
     setPosts((postResult.data || []) as Post[]);
     setCampaigns((campaignResult.data || []) as Campaign[]);
-    setNotice("Secure Supabase workspace connected.");
+    setNotice("");
   }, [supabase, session]);
 
   useEffect(() => {
@@ -410,6 +415,7 @@ export default function Page() {
   if (!session || role !== "owner")
     return (
       <main
+        className="auth-shell"
         style={{
           minHeight: "100vh",
           display: "grid",
@@ -516,12 +522,37 @@ export default function Page() {
       </main>
     );
 
-  const contentPosts = posts.filter((p) => !isPlanningRecord(p));
+  const contentPosts = posts.filter(
+    (p) => !isPlanningRecord(p) && !isEditingRecord(p),
+  );
   const drafts = contentPosts.filter((p) => p.status === "Draft"),
     pending = contentPosts.filter((p) => p.status === "Pending approval"),
     approved = contentPosts.filter((p) => p.status === "Approved"),
     scheduled = contentPosts.filter((p) => p.status === "Scheduled");
   const panel = () => {
+    if (active === "Media Studio" && supabase)
+      return (
+        <MediaStudio
+          onAssets={(incoming) =>
+            setAssets((current) => [
+              ...incoming,
+              ...current.filter(
+                (a) => !incoming.some((next) => next.id === a.id),
+              ),
+            ])
+          }
+          client={supabase}
+          assets={assets}
+          posts={posts}
+          campaigns={campaigns}
+          onSaved={(post) =>
+            setPosts((current) => [
+              post,
+              ...current.filter((p) => p.id !== post.id),
+            ])
+          }
+        />
+      );
     if (active === "Media Library" && supabase)
       return (
         <MediaLibrary
@@ -591,7 +622,7 @@ export default function Page() {
             >
               Create sample caption
             </button>
-            <p style={{ color: "#617187" }}>
+            <p style={{ color: "var(--muted)" }}>
               AI output is labelled AI generated. Sample captions are clearly
               labelled and are never presented as AI output.
             </p>
@@ -683,6 +714,11 @@ export default function Page() {
                   style={{ borderTop: "1px solid #dce3ea", padding: "16px 0" }}
                 >
                   <strong>{post.title}</strong>
+                  <SocialPostPreview
+                    title={post.title}
+                    body={post.body}
+                    asset={assets.find((asset) => asset.id === post.media_id)}
+                  />
                   <p style={{ whiteSpace: "pre-wrap" }}>{post.body}</p>
                   <PostAttachment
                     asset={assets.find((asset) => asset.id === post.media_id)}
@@ -856,13 +892,7 @@ export default function Page() {
     return (
       <article style={card}>
         <h2>Settings</h2>
-        <p>
-          Workspace data uses Supabase authentication and owner access policies.
-          Live integration requires the configured Supabase project and both
-          migrations. AI generation requires a server-side OpenAI key with
-          existing account access. Meta/Facebook/Instagram are not connected, so
-          publishing remains manual.
-        </p>
+        <SystemStatus token={session!.access_token} />
       </article>
     );
   };
@@ -943,7 +973,7 @@ export default function Page() {
                 letterSpacing: 1.4,
               }}
             >
-              SECURE OWNER WORKSPACE
+              OWNER WORKSPACE
             </p>
             <h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1>
             <p className="muted">
@@ -970,19 +1000,21 @@ export default function Page() {
             </button>
           </div>
         </header>
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            background: "white",
-            borderLeft: "4px solid #19865c",
-            padding: 16,
-            borderRadius: 5,
-            margin: "25px 0",
-          }}
-        >
-          ● {notice}
-        </div>
+        {notice && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              background: "white",
+              borderLeft: "4px solid #19865c",
+              padding: 16,
+              borderRadius: 5,
+              margin: "25px 0",
+            }}
+          >
+            ● {notice}
+          </div>
+        )}
         {panel()}
       </section>
     </main>

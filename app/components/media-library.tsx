@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateMedia } from "../../lib/media";
+import BatchUpload from "./batch-upload";
 
 export type Asset = {
   id: string;
@@ -34,6 +35,7 @@ export default function MediaLibrary({
   const [product, setProduct] = useState("");
   const [campaign, setCampaign] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [fileKey, setFileKey] = useState(0);
   async function api(payload: object) {
@@ -194,55 +196,59 @@ export default function MediaLibrary({
           Construction progress, factory production and property development.
           Private originals, up to 50 MB each.
         </p>
-        <form onSubmit={upload}>
-          <div className="form-grid">
-            <label>
-              Original photo or video
-              <input
-                key={fileKey}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-                required
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-            </label>
-            <label>
-              Project
-              <input
-                maxLength={120}
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-                placeholder="e.g. Adenta development"
-              />
-            </label>
-            <label>
-              Product
-              <input
-                maxLength={120}
-                value={product}
-                onChange={(e) => setProduct(e.target.value)}
-                placeholder="e.g. Concrete blocks"
-              />
-            </label>
-            <label>
-              Campaign
-              <select
-                value={campaign}
-                onChange={(e) => setCampaign(e.target.value)}
-              >
-                <option value="">Unassigned</option>
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <button disabled={busy || !file}>
-            {busy ? "Working…" : "Upload to private library"}
-          </button>
-        </form>
+        <BatchUpload client={client} onUploaded={() => void refresh()} />
+        <details>
+          <summary>Single-file upload with product labels</summary>
+          <form onSubmit={upload}>
+            <div className="form-grid">
+              <label>
+                Original photo or video
+                <input
+                  key={fileKey}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+                  required
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+              </label>
+              <label>
+                Project
+                <input
+                  maxLength={120}
+                  value={project}
+                  onChange={(e) => setProject(e.target.value)}
+                  placeholder="e.g. Adenta development"
+                />
+              </label>
+              <label>
+                Product
+                <input
+                  maxLength={120}
+                  value={product}
+                  onChange={(e) => setProduct(e.target.value)}
+                  placeholder="e.g. Concrete blocks"
+                />
+              </label>
+              <label>
+                Campaign
+                <select
+                  value={campaign}
+                  onChange={(e) => setCampaign(e.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button disabled={busy || !file}>
+              {busy ? "Working…" : "Upload to private library"}
+            </button>
+          </form>
+        </details>
         <p className="muted">
           To replace media, upload the new original and select it when editing
           the post. The post returns to Draft for a fresh approval.
@@ -253,7 +259,10 @@ export default function MediaLibrary({
           Find media
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
             placeholder="Search filename, project, product or campaign"
           />
         </label>
@@ -264,69 +273,102 @@ export default function MediaLibrary({
           </div>
         ) : (
           <div className="media-grid">
-            {visible.map((asset) => (
-              <article className="media-card" key={asset.id}>
-                {asset.url ? (
-                  asset.mime_type.startsWith("video/") ? (
-                    <video
-                      controls
-                      preload="metadata"
-                      src={asset.url}
-                      aria-label={asset.original_name}
-                    />
+            {visible
+              .slice(
+                Math.min(
+                  page,
+                  Math.max(0, Math.ceil(visible.length / 12) - 1),
+                ) * 12,
+                Math.min(
+                  page,
+                  Math.max(0, Math.ceil(visible.length / 12) - 1),
+                ) *
+                  12 +
+                  12,
+              )
+              .map((asset) => (
+                <article className="media-card" key={asset.id}>
+                  {asset.url ? (
+                    asset.mime_type.startsWith("video/") ? (
+                      <video
+                        controls
+                        preload="metadata"
+                        src={asset.url}
+                        aria-label={asset.original_name}
+                      />
+                    ) : (
+                      <img
+                        loading="lazy"
+                        src={asset.url}
+                        alt={asset.original_name}
+                      />
+                    )
                   ) : (
-                    <img
-                      loading="lazy"
-                      src={asset.url}
-                      alt={asset.original_name}
-                    />
-                  )
-                ) : (
-                  <div className="empty-state">
-                    Preview unavailable. Refresh to retry.
-                  </div>
-                )}
-                <div className="media-details">
-                  <h3>{asset.original_name}</h3>
-                  {asset.url && (
-                    <a
-                      href={asset.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Open original ↗
-                    </a>
+                    <div className="empty-state">
+                      Preview unavailable. Refresh to retry.
+                    </div>
                   )}
-                  <p>
-                    {asset.project || "No project"} ·{" "}
-                    {asset.product || "No product"}
-                  </p>
-                  <p className="muted">
-                    {(asset.size_bytes / 1024 / 1024).toFixed(1)} MB ·{" "}
-                    {campaigns.find((c) => c.id === asset.campaign_id)?.name ||
-                      "Unassigned"}
-                  </p>
-                  <div className="actions">
-                    <button
-                      disabled={busy}
-                      type="button"
-                      onClick={() => void organise(asset)}
-                    >
-                      Apply labels above
-                    </button>
-                    <button
-                      disabled={busy}
-                      className="danger"
-                      type="button"
-                      onClick={() => void remove(asset)}
-                    >
-                      Remove
-                    </button>
+                  <div className="media-details">
+                    <h3>{asset.original_name}</h3>
+                    {asset.url && (
+                      <a
+                        href={asset.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open original ↗
+                      </a>
+                    )}
+                    <p>
+                      {asset.project || "No project"} ·{" "}
+                      {asset.product || "No product"}
+                    </p>
+                    <p className="muted">
+                      {(asset.size_bytes / 1024 / 1024).toFixed(1)} MB ·{" "}
+                      {campaigns.find((c) => c.id === asset.campaign_id)
+                        ?.name || "Unassigned"}
+                    </p>
+                    <div className="actions">
+                      <button
+                        disabled={busy}
+                        type="button"
+                        onClick={() => void organise(asset)}
+                      >
+                        Apply labels above
+                      </button>
+                      <button
+                        disabled={busy}
+                        className="danger"
+                        type="button"
+                        onClick={() => void remove(asset)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
           </div>
+        )}
+        {visible.length > 12 && (
+          <nav className="actions" aria-label="Media library pages">
+            <button
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Previous media page
+            </button>
+            <span>
+              Page {Math.min(page + 1, Math.ceil(visible.length / 12))} of{" "}
+              {Math.ceil(visible.length / 12)}
+            </span>
+            <button
+              disabled={page >= Math.ceil(visible.length / 12) - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next media page
+            </button>
+          </nav>
         )}
       </article>
     </>

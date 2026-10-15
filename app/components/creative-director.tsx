@@ -82,9 +82,7 @@ export default function CreativeDirector({
   const [media, setMedia] = useState("");
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(
-    "Choose a campaign, then create a sample plan or request live AI.",
-  );
+  const [message, setMessage] = useState("");
   const [tab, setTab] = useState("Creative dashboard");
   const [draftCopy, setDraftCopy] = useState<
     "caption" | "description" | "voiceover"
@@ -437,22 +435,15 @@ export default function CreativeDirector({
           Turn a marketing idea into a practical filming plan, shot checklist
           and content calendar.
         </p>
-        <span className="creative-mode">
-          {configured === true
-            ? "Live AI configured · requests may use your existing API quota"
-            : configured === false
-              ? "Live AI unavailable · sample / manual planning available"
-              : "AI configuration not verified · sample / manual planning available"}
-        </span>
       </section>
-      <p
-        role="status"
-        className={`creative-notice ${busy ? "is-loading" : /could not|failed|invalid|exceeds|not configured|rejected|quota|unavailable|expired/i.test(message) ? "is-error" : /saved|created|copied|ready/i.test(message) ? "is-success" : ""}`}
-      >
-        {busy
-          ? "Working securely — your existing plan stays available until the operation succeeds."
-          : message}
-      </p>
+      {(busy || message) && (
+        <p
+          role="status"
+          className={`creative-notice ${busy ? "is-loading" : /could not|failed|invalid|exceeds|not configured|rejected|quota|unavailable|expired/i.test(message) ? "is-error" : /saved|created|copied|ready/i.test(message) ? "is-success" : ""}`}
+        >
+          {busy ? "Creating your plan…" : message}
+        </p>
+      )}
       <nav
         className="studio-navigation"
         aria-label="Creative Director sections"
@@ -712,12 +703,18 @@ export default function CreativeDirector({
             </button>
             <button
               type="button"
+              aria-describedby="creative-ai-help"
               disabled={busy || configured !== true}
               onClick={() => void generate(true)}
             >
               {busy ? "Working…" : "Generate live AI plan"}
             </button>
           </div>
+          <p id="creative-ai-help" className="creative-small">
+            {configured === true
+              ? "AI requests use your configured API quota."
+              : "AI generation unavailable. Use a sample plan."}
+          </p>
           <p className="creative-small">
             Sample plans use an editable template, never live AI. No image or
             video generation services are used. Check facts, consent and site

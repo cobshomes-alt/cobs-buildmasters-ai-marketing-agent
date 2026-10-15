@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { waitForOwnerWorkspace } from "./workspace";
+import { EDIT_PREFIX } from "../../lib/studio-model.mjs";
 
 test("owner dashboard saves drafts and renders without mobile overflow (mocked Supabase)", async ({
   page,
@@ -38,6 +39,20 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
   await page.route("https://cobs-test.supabase.co/**", async (route) => {
     const req = route.request();
     const url = new URL(req.url());
+    if (
+      req.method() === "GET" &&
+      url.pathname.includes("/storage/v1/object/sign/")
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+      return;
+    }
     let body: unknown = [];
     if (url.pathname.includes("cobs_profiles")) body = { role: "owner" };
     else if (url.pathname.includes("cobs_posts")) {
@@ -52,6 +67,21 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
         posts.unshift(row);
         body = row;
       } else body = posts;
+    } else if (url.pathname.includes("cobs_media_assets")) {
+      body = [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          storage_path: `${owner}/33333333-3333-4333-8333-333333333333.png`,
+          original_name: "Synthetic local preview.png",
+          mime_type: "image/png",
+          size_bytes: 68,
+          project: "Synthetic test",
+          product: "",
+          campaign_id: null,
+        },
+      ];
+    } else if (url.pathname.includes("/storage/v1/object/sign/")) {
+      body = { signedURL: "/object/sign/cobs-media/synthetic.png?token=fake" };
     }
     await route.fulfill({
       status: 200,
@@ -60,6 +90,13 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
       headers: { "access-control-allow-origin": "*" },
     });
   });
+  await page.route("**/api/studio", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ready: false, jobs: [] }),
+    }),
+  );
   await page.goto("/");
   await waitForOwnerWorkspace(page);
   const logo = page.getByRole("img", { name: /COBS BUILDMASTERS LTD/ });
@@ -151,6 +188,99 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     path: ".tools/screenshots/media-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Photo & single-source exports", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Project title", exact: true })
+    .fill("Synthetic editor recipe");
+  await page
+    .getByRole("combobox", { name: "Original media", exact: true })
+    .selectOption("22222222-2222-4222-8222-222222222222");
+  await page
+    .getByRole("textbox", { name: "Branded headline", exact: true })
+    .fill("Verified local planning");
+  await page
+    .getByRole("button", { name: "Save editing project", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Editing recipe saved" }),
+  ).toBeVisible();
+  expect(
+    posts.filter((p) => String(p.body).startsWith(EDIT_PREFIX)),
+  ).toHaveLength(1);
+  await expect(
+    page.getByRole("button", { name: "Render saved project" }),
+  ).toBeDisabled();
+  await page.screenshot({
+    path: ".tools/screenshots/media-studio-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.reload();
+  await waitForOwnerWorkspace(page);
+  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Photo & single-source exports", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Saved editing project", exact: true })
+    .selectOption(
+      String(posts.find((p) => String(p.body).startsWith(EDIT_PREFIX))!.id),
+    );
+  await expect(
+    page.getByRole("textbox", { name: "Branded headline", exact: true }),
+  ).toHaveValue("Verified local planning");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: ".tools/screenshots/media-studio-desktop.png",
+    fullPage: true,
+  });
+  await page
+    .locator(".editor-grid > div")
+    .last()
+    .screenshot({ path: ".tools/screenshots/premium-export-panel.png" });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Content Calendar", exact: true })
+    .click();
+  await expect(
+    page.getByText("Synthetic editor recipe", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByText("Preview social post", { exact: true }).click();
+  for (const platform of [
+    "Instagram Feed",
+    "Instagram Reels",
+    "Instagram Stories",
+    "Facebook Feed",
+    "Facebook Reels",
+    "TikTok",
+    "YouTube Shorts",
+    "YouTube standard video",
+    "X",
+    "Snapchat",
+    "Google Business Profile",
+  ]) {
+    await page
+      .getByRole("combobox", { name: "Preview platform", exact: true })
+      .selectOption(platform);
+    await expect(
+      page.getByText(`${platform} · Draft preview`, { exact: true }),
+    ).toBeVisible();
+  }
+  await page.screenshot({
+    path: ".tools/screenshots/premium-social-preview.png",
+    fullPage: true,
+  });
   expect(errors).toEqual([]);
 });
 
@@ -185,6 +315,11 @@ test("original JPEG branding loads without cropping on the mobile sign-in page",
   ).toBe(true);
   await page.screenshot({
     path: ".tools/screenshots/branding-sign-in-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: ".tools/screenshots/premium-login.png",
     fullPage: true,
   });
 });

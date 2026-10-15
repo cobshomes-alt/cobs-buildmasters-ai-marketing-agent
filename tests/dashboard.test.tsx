@@ -123,13 +123,11 @@ test("reauthentication retains navigation and a late auth response cannot overwr
   expect(
     screen.getAllByRole("heading", { name: "Content Calendar" }).length,
   ).toBeGreaterThan(0);
-  await screen.findByText("Secure Supabase workspace connected.", {
-    exact: false,
-  });
   await act(async () => finishLogin());
   expect(
-    screen.getByText("Secure Supabase workspace connected.", { exact: false }),
+    screen.getByRole("navigation", { name: "Workspace sections" }),
   ).toBeTruthy();
+  expect(screen.queryByText("Secure Supabase workspace connected.")).toBeNull();
   expect(mock.insert).not.toHaveBeenCalled();
 });
 test("missing configuration displays sign in and an actionable status", async () => {
