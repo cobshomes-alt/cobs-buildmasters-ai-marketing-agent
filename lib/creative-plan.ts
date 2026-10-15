@@ -1,3 +1,4 @@
+import { verifiedScenes, VERIFIED_ACTIVITIES } from "./production-guidance";
 export const PLAN_PREFIX = "[COBS_PRODUCTION_PLAN_V1]\n";
 export const PLATFORM_NAMES = [
   "Facebook",
@@ -15,6 +16,13 @@ export const WORK_STAGES = [
 export const COMPANY_FACTS =
   "COBS BUILDMASTERS LTD; Adenta New Legon, Ghana; concrete blocks, construction materials, construction services, equipment rentals and flooring products; contacts 0594599327 and 0503466178.";
 export type Brief = {
+  activity?: "general" | "factory" | "construction" | "rentals" | "property";
+  product?: string;
+  audience?: string;
+  objective?: string;
+  footage?: string;
+  instructions?: string;
+  verifiedActivities?: string[];
   topic: string;
   project: string;
   evidence: string;
@@ -32,6 +40,13 @@ export type CreativePlan = {
   structure: string;
   safety: string[];
   shots: {
+    purpose?: string;
+    shotType?: string;
+    onScreen?: string;
+    audio?: string;
+    narration?: string;
+    screenText?: string;
+    retake?: string;
     scene: string;
     angle: string;
     movement: string;
@@ -41,8 +56,16 @@ export type CreativePlan = {
   }[];
   platforms: { platform: string; format: string; requirements: string }[];
   ideas: { title: string; category: string; evidence: string }[];
-  calendar: { day: number; idea: string; platform: string; format: string }[];
+  calendar: {
+    day: number;
+    idea: string;
+    platform: string;
+    format: string;
+    objective?: string;
+    evidence?: string;
+  }[];
   scripts: {
+    talkingPoints?: string;
     style: string;
     length: string;
     hook: string;
@@ -69,6 +92,29 @@ const text = (value: unknown, limit: number) =>
 export function validBrief(value: unknown): value is Brief {
   if (!object(value)) return false;
   return (
+    (value.activity === undefined ||
+      ["general", "factory", "construction", "rentals", "property"].includes(
+        String(value.activity),
+      )) &&
+    ["product", "audience", "objective", "footage", "instructions"].every(
+      (key) =>
+        value[key] === undefined ||
+        (typeof value[key] === "string" &&
+          (value[key] as string).length <= 240),
+    ) &&
+    (value.verifiedActivities === undefined ||
+      (Array.isArray(value.verifiedActivities) &&
+        value.verifiedActivities.length <= 12 &&
+        value.verifiedActivities.every(
+          (item) =>
+            typeof item === "string" &&
+            item.length <= 100 &&
+            VERIFIED_ACTIVITIES[String(value.activity || "general")]?.includes(
+              item,
+            ),
+        ) &&
+        new Set(value.verifiedActivities).size ===
+          value.verifiedActivities.length)) &&
     text(value.topic, 400) &&
     typeof value.project === "string" &&
     value.project.length <= 120 &&
@@ -124,7 +170,7 @@ export function validPlan(value: unknown): value is CreativePlan {
     value.safety.every((s) => text(s, 250)) &&
     list(
       value.shots,
-      8,
+      12,
       {
         scene: 160,
         angle: 160,
@@ -133,6 +179,19 @@ export function validPlan(value: unknown): value is CreativePlan {
         transition: 100,
       },
       (r) =>
+        [
+          "purpose",
+          "shotType",
+          "onScreen",
+          "audio",
+          "narration",
+          "screenText",
+          "retake",
+        ].every(
+          (key) =>
+            r[key] === undefined ||
+            (typeof r[key] === "string" && (r[key] as string).length <= 180),
+        ) &&
         Number.isInteger(r.seconds) &&
         Number(r.seconds) >= 1 &&
         Number(r.seconds) <= 30,
@@ -150,21 +209,33 @@ export function validPlan(value: unknown): value is CreativePlan {
       12,
       { idea: 120, platform: 30, format: 80 },
       (r) =>
+        ["objective", "evidence"].every(
+          (key) =>
+            r[key] === undefined ||
+            (typeof r[key] === "string" && (r[key] as string).length <= 180),
+        ) &&
         Number.isInteger(r.day) &&
         Number(r.day) >= 1 &&
         Number(r.day) <= 28 &&
         PLATFORM_NAMES.includes(r.platform as (typeof PLATFORM_NAMES)[number]),
     ) &&
-    list(value.scripts, 3, {
-      style: 60,
-      length: 60,
-      hook: 200,
-      voiceover: 1200,
-      caption: 900,
-      description: 900,
-      hashtags: 250,
-      cta: 200,
-    })
+    list(
+      value.scripts,
+      3,
+      {
+        style: 60,
+        length: 60,
+        hook: 200,
+        voiceover: 1200,
+        caption: 900,
+        description: 900,
+        hashtags: 250,
+        cta: 200,
+      },
+      (r) =>
+        r.talkingPoints === undefined ||
+        (typeof r.talkingPoints === "string" && r.talkingPoints.length <= 180),
+    )
   );
 }
 export function validDocument(value: unknown): value is PlanDocument {
@@ -337,16 +408,16 @@ export function samplePlan(brief: Brief): CreativePlan {
       "Do not climb scaffolding, walk backwards or enter active work areas to obtain a shot. Stop filming when safe separation cannot be maintained.",
       "Use required site PPE; PPE does not grant access to a restricted area. Obtain worker consent and protect customer/address information.",
     ],
-    shots: scenes.map(
-      ([scene, angle, movement, demonstration, transition]) => ({
+    shots:
+      verifiedScenes(brief) ||
+      scenes.map(([scene, angle, movement, demonstration, transition]) => ({
         scene,
         angle,
         movement,
         seconds: isShort ? 5 : brief.length === "90 seconds" ? 18 : 10,
         demonstration,
         transition,
-      }),
-    ),
+      })),
     platforms: brief.platforms.map((platform) => ({
       platform,
       format:

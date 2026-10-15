@@ -1,6 +1,15 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import type { SupabaseClient, Session } from "@supabase/supabase-js";
+import {
+  ProductionDashboard,
+  VisualStoryboard,
+  StudioIcon,
+} from "./creative-production";
+import {
+  ACTIVITY_LABELS,
+  VERIFIED_ACTIVITIES,
+} from "../../lib/production-guidance";
 import type { Asset } from "./media-library";
 import {
   PLATFORM_NAMES,
@@ -40,6 +49,13 @@ type Props = {
 };
 const initialBrief = (): Brief => ({
   topic: "I want to film my concrete block factory",
+  activity: "factory",
+  product: "Concrete blocks",
+  audience: "Builders and property developers",
+  objective: "Explain our production process and invite enquiries",
+  footage: "",
+  instructions: "",
+  verifiedActivities: [],
   project: "",
   evidence: "",
   period: "week",
@@ -69,11 +85,74 @@ export default function CreativeDirector({
   const [message, setMessage] = useState(
     "Choose a campaign, then create a sample plan or request live AI.",
   );
-  const [tab, setTab] = useState("Filming plan");
+  const [tab, setTab] = useState("Creative dashboard");
   const [draftCopy, setDraftCopy] = useState<
     "caption" | "description" | "voiceover"
   >("caption");
   const [dirty, setDirty] = useState(false);
+  const operation = useRef(false);
+  const pendingPlanId = useRef<string | null>(null);
+  const pendingDraftId = useRef<string | null>(null);
+  const sectionNames = [
+    "Creative dashboard",
+    "Production brief",
+    "Storyboard",
+    "Filming checklist",
+    "Scripts & captions",
+    "Ideas & calendar",
+    "Original media",
+    "Production workflow",
+  ];
+  const sectionIcons = [
+    "dashboard",
+    "brief",
+    "storyboard",
+    "checklist",
+    "script",
+    "calendar",
+    "media",
+    "workflow",
+  ];
+  useEffect(() => {
+    if (!dirty) return;
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const leave = (event: MouseEvent) => {
+      const target =
+        event.target instanceof Element ? event.target.closest("button") : null;
+      if (
+        target &&
+        ((target.closest('nav[aria-label="Workspace sections"]') &&
+          target.textContent?.trim() !== "Creative Studio") ||
+          ["Refresh", "Sign out"].includes(target.textContent?.trim() || "")) &&
+        !window.confirm(
+          "Leave Creative Studio and discard unsaved changes? Save your plan first to keep them.",
+        )
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", unload);
+    window.document.addEventListener("click", leave, true);
+    return () => {
+      window.removeEventListener("beforeunload", unload);
+      window.document.removeEventListener("click", leave, true);
+    };
+  }, [dirty]);
+  async function copyText(text: string) {
+    try {
+      if (!navigator.clipboard) throw new Error();
+      await navigator.clipboard.writeText(text);
+      setMessage("Text copied. Review all claims before using it.");
+    } catch {
+      setMessage(
+        "Clipboard is unavailable. Select the text in its field and copy it manually.",
+      );
+    }
+  }
   useEffect(() => {
     let cancelled = false;
     fetch("/api/creative-director", {
@@ -123,6 +202,8 @@ export default function CreativeDirector({
       !window.confirm("Replace the unsaved planning changes?")
     )
       return;
+    if (operation.current) return;
+    operation.current = true;
     setBusy(true);
     try {
       let plan = samplePlan(brief);
@@ -159,7 +240,9 @@ export default function CreativeDirector({
       setSaved(null);
       setMedia("");
       setDirty(true);
-      setTab("Filming plan");
+      pendingPlanId.current = null;
+      pendingDraftId.current = null;
+      setTab("Storyboard");
       setMessage(
         ai
           ? "AI-generated plan ready. Verify all facts and save it to your campaign."
@@ -168,20 +251,27 @@ export default function CreativeDirector({
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Planning failed.");
     } finally {
+      operation.current = false;
       setBusy(false);
     }
   }
   async function persist(next: PlanDocument, outputMedia = media) {
     if (
       document &&
-      (brief.period !== document.brief.period ||
+      ((brief.activity || "general") !==
+        (document.brief.activity || "general") ||
+        JSON.stringify([...(brief.verifiedActivities || [])].sort()) !==
+          JSON.stringify(
+            [...(document.brief.verifiedActivities || [])].sort(),
+          ) ||
+        brief.period !== document.brief.period ||
         brief.style !== document.brief.style ||
         brief.length !== document.brief.length ||
         [...brief.platforms].sort().join() !==
           [...document.brief.platforms].sort().join())
     )
       throw new Error(
-        "Calendar, style, length or platform preferences changed. Generate a new plan to apply them, or restore the saved preferences before saving.",
+        "Category, verified activities, calendar, style, length or platform preferences changed. Generate a new plan to apply them, or restore the saved preferences before saving.",
       );
     if (!campaigns.some((c) => c.id === campaign))
       throw new Error(
@@ -195,15 +285,18 @@ export default function CreativeDirector({
       media_id: outputMedia || null,
       status: "Draft",
     };
+    pendingPlanId.current ||= crypto.randomUUID();
     const query = saved
       ? client
           .from("cobs_posts")
           .update(values)
           .eq("id", saved.id)
           .eq("updated_at", saved.updated_at || "")
-      : client
-          .from("cobs_posts")
-          .insert({ ...values, created_by: session.user.id });
+      : client.from("cobs_posts").insert({
+          ...values,
+          id: pendingPlanId.current,
+          created_by: session.user.id,
+        });
     const { data, error } = await query.select("*").single();
     if (error || !data)
       throw new Error(
@@ -217,6 +310,8 @@ export default function CreativeDirector({
   }
   async function save() {
     if (!document) return;
+    if (operation.current) return;
+    operation.current = true;
     setBusy(true);
     try {
       await persist({ ...document, brief });
@@ -224,6 +319,7 @@ export default function CreativeDirector({
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Save failed.");
     } finally {
+      operation.current = false;
       setBusy(false);
     }
   }
@@ -240,6 +336,9 @@ export default function CreativeDirector({
       );
       return;
     }
+    pendingPlanId.current = null;
+    pendingDraftId.current = null;
+    setTab("Storyboard");
     setDocument(parsed);
     setBrief(parsed.brief);
     setSaved(post);
@@ -256,6 +355,8 @@ export default function CreativeDirector({
       );
       return;
     }
+    if (operation.current) return;
+    operation.current = true;
     setBusy(true);
     try {
       encodePlan({
@@ -266,9 +367,11 @@ export default function CreativeDirector({
       });
       const stored = await persist({ ...document, brief });
       const script = document.plan.scripts[index];
+      pendingDraftId.current ||= crypto.randomUUID();
       const { data, error } = await client
         .from("cobs_posts")
         .insert({
+          id: pendingDraftId.current,
           title: brief.topic.slice(0, 240),
           body: `${script.hook}\n\n${script[draftCopy]}\n\n${script.cta}\n\n${script.hashtags}`,
           status: "Draft",
@@ -318,12 +421,13 @@ export default function CreativeDirector({
         error instanceof Error ? error.message : "Draft creation failed.",
       );
     } finally {
+      operation.current = false;
       setBusy(false);
     }
   }
   const selectedAsset = assets.find((a) => a.id === media);
   return (
-    <div className="creative-workspace">
+    <div className="creative-workspace" aria-busy={busy}>
       <section className="creative-hero">
         <span className="creative-eyebrow">
           COBS BUILDMASTERS LTD · PRODUCTION STUDIO
@@ -341,126 +445,262 @@ export default function CreativeDirector({
               : "AI configuration not verified · sample / manual planning available"}
         </span>
       </section>
-      <p role="status" className="creative-notice">
-        {message}
+      <p
+        role="status"
+        className={`creative-notice ${busy ? "is-loading" : /could not|failed|invalid|exceeds|not configured|rejected|quota|unavailable|expired/i.test(message) ? "is-error" : /saved|created|copied|ready/i.test(message) ? "is-success" : ""}`}
+      >
+        {busy
+          ? "Working securely — your existing plan stays available until the operation succeeds."
+          : message}
       </p>
-      <div className="creative-layout">
-        <aside className="creative-card creative-brief">
-          <h3>Your production brief</h3>
-          <label>
-            Promote or film
-            <textarea
-              maxLength={400}
-              value={brief.topic}
-              onChange={(e) => changeBrief({ topic: e.target.value })}
-            />
-          </label>
-          <label>
-            Campaign
-            <select
-              value={campaign}
-              disabled={Boolean(document?.outputPostId)}
-              onChange={(e) => {
-                setCampaign(e.target.value);
-                setDirty(true);
-              }}
-            >
-              <option value="">Select a campaign</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!campaigns.length && (
-            <button type="button" onClick={() => navigate("Campaign Planner")}>
-              Create a campaign
-            </button>
+      <nav
+        className="studio-navigation"
+        aria-label="Creative Director sections"
+      >
+        {sectionNames.map((section, i) => (
+          <button
+            type="button"
+            key={section}
+            aria-current={tab === section ? "page" : undefined}
+            onClick={() => setTab(section)}
+          >
+            <StudioIcon name={sectionIcons[i]} />
+            <span>{section}</span>
+          </button>
+        ))}
+      </nav>
+      {plans.length > 0 && (
+        <section className="creative-card studio-plan-library">
+          {" "}
+          <h3>Saved production plans</h3>
+          {plans.length ? (
+            plans.map((p) => (
+              <button
+                className="creative-saved"
+                type="button"
+                key={p.id}
+                disabled={busy}
+                onClick={() => open(p)}
+              >
+                {p.title}
+                {!decodePlan(p.body) && " · needs review"}
+              </button>
+            ))
+          ) : (
+            <p className="creative-small">
+              Saved plans will appear here across devices.
+            </p>
           )}
-          <label>
-            Project or location label
-            <input
-              maxLength={120}
-              value={brief.project}
-              onChange={(e) => changeBrief({ project: e.target.value })}
-            />
-          </label>
-          <label>
-            Verified evidence and constraints
-            <textarea
-              maxLength={1200}
-              placeholder="What is genuinely available to film? Which claims need checking?"
-              value={brief.evidence}
-              onChange={(e) => changeBrief({ evidence: e.target.value })}
-            />
-          </label>
-          <div className="creative-pair">
+        </section>
+      )}
+      <fieldset
+        disabled={busy}
+        className="creative-layout premium-layout"
+        aria-label="Production workspace"
+      >
+        <aside
+          className="creative-card creative-brief"
+          hidden={tab !== "Production brief"}
+        >
+          <div className="studio-section-heading">
+            <div>
+              <span className="creative-eyebrow">01 / DEFINE THE STORY</span>
+              <h3>Your production brief</h3>
+              <p>
+                Tell us what is real, who it is for and what the content should
+                achieve.
+              </p>
+            </div>
+            <StudioIcon name="brief" />
+          </div>
+          <div className="brief-grid">
             <label>
-              Calendar
+              Promote or film
+              <textarea
+                maxLength={400}
+                value={brief.topic}
+                onChange={(e) => changeBrief({ topic: e.target.value })}
+              />
+            </label>
+            <label>
+              Campaign
               <select
-                value={brief.period}
+                value={campaign}
+                disabled={Boolean(document?.outputPostId)}
+                onChange={(e) => {
+                  setCampaign(e.target.value);
+                  setDirty(true);
+                }}
+              >
+                <option value="">Select a campaign</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!campaigns.length && (
+              <button
+                type="button"
+                onClick={() => navigate("Campaign Planner")}
+              >
+                Create a campaign
+              </button>
+            )}
+            <label>
+              Production category
+              <select
+                value={brief.activity || "general"}
                 onChange={(e) =>
-                  changeBrief({ period: e.target.value as Brief["period"] })
+                  changeBrief({
+                    activity: e.target.value as Brief["activity"],
+                    verifiedActivities: [],
+                  })
                 }
               >
-                <option value="week">Weekly · 7 ideas</option>
-                <option value="month">Monthly · 12 ideas</option>
+                {Object.entries(ACTIVITY_LABELS).map(([key, label]) => (
+                  <option value={key} key={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {(
+              [
+                ["product", "Product or service"],
+                ["audience", "Target audience"],
+                ["objective", "Content objective"],
+                ["footage", "Available footage or equipment"],
+                ["instructions", "Specific filming instructions"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <textarea
+                  maxLength={240}
+                  value={brief[key] || ""}
+                  onChange={(e) => changeBrief({ [key]: e.target.value })}
+                />
+              </label>
+            ))}
+            <label>
+              Project or location label
+              <input
+                maxLength={120}
+                value={brief.project}
+                onChange={(e) => changeBrief({ project: e.target.value })}
+              />
+            </label>
+            <label>
+              Verified evidence and constraints
+              <textarea
+                maxLength={1200}
+                placeholder="What is genuinely available to film? Which claims need checking?"
+                value={brief.evidence}
+                onChange={(e) => changeBrief({ evidence: e.target.value })}
+              />
+            </label>
+            <div className="creative-pair">
+              <label>
+                Calendar
+                <select
+                  value={brief.period}
+                  onChange={(e) =>
+                    changeBrief({ period: e.target.value as Brief["period"] })
+                  }
+                >
+                  <option value="week">Weekly · 7 ideas</option>
+                  <option value="month">Monthly · 12 ideas</option>
+                </select>
+              </label>
+              <label>
+                Start date
+                <input
+                  type="date"
+                  value={brief.startDate}
+                  onChange={(e) => changeBrief({ startDate: e.target.value })}
+                />
+              </label>
+            </div>
+            <label>
+              Creative style
+              <select
+                value={brief.style}
+                onChange={(e) =>
+                  changeBrief({ style: e.target.value as Brief["style"] })
+                }
+              >
+                {["Professional", "Educational", "Behind the scenes"].map(
+                  (s) => (
+                    <option key={s}>{s}</option>
+                  ),
+                )}
               </select>
             </label>
             <label>
-              Start date
-              <input
-                type="date"
-                value={brief.startDate}
-                onChange={(e) => changeBrief({ startDate: e.target.value })}
-              />
+              Final video length
+              <select
+                value={brief.length}
+                onChange={(e) =>
+                  changeBrief({ length: e.target.value as Brief["length"] })
+                }
+              >
+                {["15–30 seconds", "45–60 seconds", "90 seconds"].map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
             </label>
+            <fieldset>
+              <legend>Platforms</legend>
+              {PLATFORM_NAMES.map((p) => (
+                <label className="creative-check" key={p}>
+                  <input
+                    type="checkbox"
+                    checked={brief.platforms.includes(p)}
+                    onChange={(e) =>
+                      changeBrief({
+                        platforms: e.target.checked
+                          ? [...brief.platforms, p]
+                          : brief.platforms.filter((x) => x !== p),
+                      })
+                    }
+                  />
+                  {p}
+                </label>
+              ))}
+            </fieldset>
           </div>
-          <label>
-            Creative style
-            <select
-              value={brief.style}
-              onChange={(e) =>
-                changeBrief({ style: e.target.value as Brief["style"] })
-              }
-            >
-              {["Professional", "Educational", "Behind the scenes"].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Final video length
-            <select
-              value={brief.length}
-              onChange={(e) =>
-                changeBrief({ length: e.target.value as Brief["length"] })
-              }
-            >
-              {["15–30 seconds", "45–60 seconds", "90 seconds"].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </label>
-          <fieldset>
-            <legend>Platforms</legend>
-            {PLATFORM_NAMES.map((p) => (
-              <label className="creative-check" key={p}>
-                <input
-                  type="checkbox"
-                  checked={brief.platforms.includes(p)}
-                  onChange={(e) =>
-                    changeBrief({
-                      platforms: e.target.checked
-                        ? [...brief.platforms, p]
-                        : brief.platforms.filter((x) => x !== p),
-                    })
-                  }
-                />
-                {p}
-              </label>
-            ))}
+          <fieldset className="verified-activities">
+            <legend>Verified activities available to film</legend>
+            <p>
+              Choose only activities genuinely performed or available. No choice
+              implies completion, quality certification or stock availability.
+            </p>
+            <div>
+              {(VERIFIED_ACTIVITIES[brief.activity || "general"] || []).map(
+                (activity) => (
+                  <label className="creative-check" key={activity}>
+                    <input
+                      type="checkbox"
+                      checked={
+                        brief.verifiedActivities?.includes(activity) || false
+                      }
+                      onChange={(e) =>
+                        changeBrief({
+                          verifiedActivities: e.target.checked
+                            ? [...(brief.verifiedActivities || []), activity]
+                            : (brief.verifiedActivities || []).filter(
+                                (value) => value !== activity,
+                              ),
+                        })
+                      }
+                    />
+                    {activity}
+                  </label>
+                ),
+              )}
+            </div>
           </fieldset>
           <div className="creative-actions">
             <button
@@ -483,28 +723,23 @@ export default function CreativeDirector({
             video generation services are used. Check facts, consent and site
             safety before production.
           </p>
-          <h3>Saved production plans</h3>
-          {plans.length ? (
-            plans.map((p) => (
-              <button
-                className="creative-saved"
-                type="button"
-                key={p.id}
-                disabled={busy}
-                onClick={() => open(p)}
-              >
-                {p.title}
-                {!decodePlan(p.body) && " · needs review"}
-              </button>
-            ))
-          ) : (
-            <p className="creative-small">
-              Saved plans will appear here across devices.
-            </p>
-          )}
         </aside>
-        <section className="creative-card creative-output">
-          {!document ? (
+        <section
+          className="creative-card creative-output"
+          hidden={tab === "Production brief"}
+        >
+          {tab === "Creative dashboard" && (
+            <ProductionDashboard
+              brief={document?.brief || brief}
+              document={document}
+              campaign={campaigns.find((c) => c.id === campaign)?.name || ""}
+              dirty={dirty}
+              savedAt={saved?.updated_at}
+              output={output}
+              navigate={setTab}
+            />
+          )}
+          {!document && tab !== "Creative dashboard" ? (
             <div className="creative-empty">
               <span aria-hidden="true">✦</span>
               <h3>Plan the story before filming</h3>
@@ -516,8 +751,11 @@ export default function CreativeDirector({
                 Start with a labelled sample and customise it, or use your
                 configured server-side AI.
               </p>
+              <button type="button" onClick={() => setTab("Production brief")}>
+                Open production brief
+              </button>
             </div>
-          ) : (
+          ) : document ? (
             <>
               <div className="creative-output-heading">
                 <div>
@@ -542,59 +780,127 @@ export default function CreativeDirector({
                   Save production plan
                 </button>
               </div>
-              <ol className="creative-workflow">
-                {[...WORK_STAGES, "Owner Review", "Approved Content"].map(
-                  (s) => (
-                    <li
-                      className={
-                        workflowStage(document, output) === s ? "current" : ""
+              {tab === "Production workflow" && (
+                <section className="workflow-panel">
+                  <h3>Production workflow</h3>
+                  <ol className="creative-workflow">
+                    {[...WORK_STAGES, "Owner Review", "Approved Content"].map(
+                      (s) => (
+                        <li
+                          className={
+                            workflowStage(document, output) === s
+                              ? "current"
+                              : ""
+                          }
+                          key={s}
+                        >
+                          {s}
+                        </li>
+                      ),
+                    )}
+                  </ol>
+                  <label>
+                    Production stage
+                    <select
+                      value={document.stage}
+                      onChange={(e) =>
+                        changeDocument({
+                          stage: e.target.value as PlanDocument["stage"],
+                        })
                       }
-                      key={s}
                     >
-                      {s}
-                    </li>
-                  ),
-                )}
-              </ol>
-              <label>
-                Production stage
-                <select
-                  value={document.stage}
-                  onChange={(e) =>
+                      {WORK_STAGES.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="creative-small">
+                    Editing Queue is a manual production handoff. Owner Review
+                    and Approved Content reflect the linked post’s actual
+                    approval status.
+                  </p>
+                  <p>
+                    Review draft: {output ? output.status : "Not created"}.
+                    Editing Queue is a manual handoff; no editing engine is
+                    connected.
+                  </p>
+                  <dl className="workflow-evidence">
+                    <div>
+                      <dt>Brief & filming plan</dt>
+                      <dd>
+                        Prepared in this plan ·{" "}
+                        {saved ? "saved to campaign" : "not saved yet"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Capture</dt>
+                      <dd>
+                        {document.checked.length} of{" "}
+                        {document.plan.shots.length} shots recorded
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Original media</dt>
+                      <dd>
+                        {saved?.media_id
+                          ? "Attached to saved plan"
+                          : media
+                            ? "Selected, not saved"
+                            : "No saved attachment"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Owner decision</dt>
+                      <dd>
+                        {output?.status === "Rejected"
+                          ? "Rejected — revise and resubmit"
+                          : output?.approved_at &&
+                              ["Approved", "Scheduled"].includes(output.status)
+                            ? "Owner approval recorded"
+                            : output?.status === "Pending approval"
+                              ? "Awaiting owner review"
+                              : "No current owner approval"}
+                      </dd>
+                    </div>
+                  </dl>
+                  {document.outputPostId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !dirty ||
+                          window.confirm(
+                            "Leave Creative Studio? Save changes first to keep them.",
+                          )
+                        )
+                          navigate("Content Calendar");
+                      }}
+                    >
+                      Open content review draft
+                    </button>
+                  )}
+                </section>
+              )}
+              {(tab === "Storyboard" || tab === "Filming checklist") && (
+                <VisualStoryboard
+                  document={document}
+                  checklist={tab === "Filming checklist"}
+                  update={changePlan}
+                  check={(index, checked) =>
                     changeDocument({
-                      stage: e.target.value as PlanDocument["stage"],
+                      checked: checked
+                        ? [
+                            ...document.checked.filter((n) => n !== index),
+                            index,
+                          ]
+                        : document.checked.filter((n) => n !== index),
                     })
                   }
-                >
-                  {WORK_STAGES.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <p className="creative-small">
-                Editing Queue is a manual production handoff. Owner Review and
-                Approved Content reflect the linked post’s actual approval
-                status.
-              </p>
-              <div className="creative-tabs" aria-label="Production plan views">
-                {[
-                  "Filming plan",
-                  "Ideas & calendar",
-                  "Scripts & captions",
-                  "Original media",
-                ].map((t) => (
-                  <button
-                    type="button"
-                    aria-pressed={tab === t}
-                    key={t}
-                    onClick={() => setTab(t)}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              {tab === "Filming plan" && (
-                <>
+                />
+              )}
+              {tab === "Storyboard" && (
+                <details className="studio-direction">
+                  <summary>Overall filming direction & platform notes</summary>
                   {(
                     [
                       ["overview", "Production direction"],
@@ -613,111 +919,21 @@ export default function CreativeDirector({
                       />
                     </label>
                   ))}
-                  <div className="creative-safety">
-                    <h4>Site safety comes first</h4>
-                    <ul>
-                      {document.plan.safety.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <h4>
-                    Shot checklist · {document.checked.length}/
-                    {document.plan.shots.length} captured
-                  </h4>
-                  {document.plan.shots.map((shot, i) => (
-                    <article className="creative-shot" key={i}>
-                      <label className="creative-check">
-                        <input
-                          type="checkbox"
-                          checked={document.checked.includes(i)}
-                          onChange={(e) =>
-                            changeDocument({
-                              checked: e.target.checked
-                                ? [...document.checked, i]
-                                : document.checked.filter((n) => n !== i),
-                            })
-                          }
-                        />
-                        <strong>
-                          {i + 1}. {shot.scene}
-                        </strong>
-                        <span>{shot.seconds}s raw take</span>
-                      </label>
-                      <p>
-                        <b>Angle:</b> {shot.angle} · <b>Movement:</b>{" "}
-                        {shot.movement}
-                      </p>
-                      <p>{shot.demonstration}</p>
-                      <p className="creative-small">
-                        Transition: {shot.transition}
-                      </p>
-                      <details>
-                        <summary>Customise this shot</summary>
-                        {(
-                          [
-                            "scene",
-                            "angle",
-                            "movement",
-                            "demonstration",
-                            "transition",
-                          ] as const
-                        ).map((key) => (
-                          <label key={key}>
-                            {key}
-                            <input
-                              maxLength={
-                                key === "demonstration"
-                                  ? 240
-                                  : key === "transition"
-                                    ? 100
-                                    : 160
-                              }
-                              value={shot[key]}
-                              onChange={(e) =>
-                                changePlan({
-                                  shots: document.plan.shots.map((s, n) =>
-                                    n === i
-                                      ? { ...s, [key]: e.target.value }
-                                      : s,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                        ))}
-                        <label>
-                          Raw take seconds
-                          <input
-                            type="number"
-                            min={1}
-                            max={30}
-                            value={shot.seconds}
-                            onChange={(e) =>
-                              changePlan({
-                                shots: document.plan.shots.map((s, n) =>
-                                  n === i
-                                    ? { ...s, seconds: Number(e.target.value) }
-                                    : s,
-                                ),
-                              })
-                            }
-                          />
-                        </label>
-                      </details>
-                    </article>
-                  ))}
-                  <h4>Platform production notes</h4>
+                  <ul>
+                    {document.plan.safety.map((value, i) => (
+                      <li key={i}>{value}</li>
+                    ))}
+                  </ul>
                   {document.plan.platforms.map((p) => (
                     <p key={p.platform}>
                       <b>
-                        {p.platform} · {p.format}
+                        {p.platform} ? {p.format}
                       </b>
                       <br />
                       {p.requirements}
                     </p>
                   ))}
-                </>
+                </details>
               )}
               {tab === "Ideas & calendar" && (
                 <>
@@ -782,6 +998,8 @@ export default function CreativeDirector({
                           <th>Idea</th>
                           <th>Platform</th>
                           <th>Format</th>
+                          <th>Objective & evidence</th>
+                          <th>Draft status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -847,6 +1065,59 @@ export default function CreativeDirector({
                                 }
                               />
                             </td>
+                            <td>
+                              <label>
+                                Objective
+                                <input
+                                  maxLength={180}
+                                  value={day.objective || ""}
+                                  placeholder={
+                                    document.brief.objective ||
+                                    "Owner to define"
+                                  }
+                                  onChange={(e) =>
+                                    changePlan({
+                                      calendar: document.plan.calendar.map(
+                                        (value, n) =>
+                                          n === i
+                                            ? {
+                                                ...value,
+                                                objective: e.target.value,
+                                              }
+                                            : value,
+                                      ),
+                                    })
+                                  }
+                                />
+                              </label>
+                              <label>
+                                Required evidence
+                                <input
+                                  maxLength={180}
+                                  value={day.evidence || ""}
+                                  placeholder="Genuine footage and verified facts"
+                                  onChange={(e) =>
+                                    changePlan({
+                                      calendar: document.plan.calendar.map(
+                                        (value, n) =>
+                                          n === i
+                                            ? {
+                                                ...value,
+                                                evidence: e.target.value,
+                                              }
+                                            : value,
+                                      ),
+                                    })
+                                  }
+                                />
+                              </label>
+                            </td>
+                            <td>
+                              <span className="studio-pill">
+                                Planning suggestion
+                              </span>
+                              <p>No individual draft linked to this date.</p>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -856,6 +1127,18 @@ export default function CreativeDirector({
               )}
               {tab === "Scripts & captions" && (
                 <>
+                  <div className="studio-section-heading">
+                    <div>
+                      <span className="creative-eyebrow">
+                        WORDS WITH PURPOSE
+                      </span>
+                      <h3>Script & caption studio</h3>
+                      <p>
+                        Edit the message, preview it, then copy or save. All
+                        claims require owner verification.
+                      </p>
+                    </div>
+                  </div>
                   <label>
                     Review draft copy
                     <select
@@ -878,6 +1161,23 @@ export default function CreativeDirector({
                       <h4>
                         {script.style} · {script.length}
                       </h4>
+                      <label>
+                        Presenter talking points
+                        <textarea
+                          maxLength={180}
+                          value={script.talkingPoints || ""}
+                          placeholder="Introduce the genuine activity; explain what is visible; invite enquiries."
+                          onChange={(e) =>
+                            changePlan({
+                              scripts: document.plan.scripts.map((value, n) =>
+                                n === i
+                                  ? { ...value, talkingPoints: e.target.value }
+                                  : value,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
                       {(
                         [
                           "hook",
@@ -918,8 +1218,24 @@ export default function CreativeDirector({
                               })
                             }
                           />
+                          <button
+                            type="button"
+                            className="studio-copy"
+                            onClick={() => void copyText(script[key])}
+                          >
+                            Copy {key}
+                          </button>
                         </label>
                       ))}
+                      <details className="script-preview">
+                        <summary>Preview this script</summary>
+                        <h4>{script.hook}</h4>
+                        <p>{script.voiceover}</p>
+                        <p>{script.caption}</p>
+                        <p>{script.description}</p>
+                        <p>{script.cta}</p>
+                        <p>{script.hashtags}</p>
+                      </details>
                       <button
                         type="button"
                         disabled={busy || Boolean(document.outputPostId)}
@@ -929,10 +1245,63 @@ export default function CreativeDirector({
                       </button>
                     </article>
                   ))}
+                  <details className="scene-script-notes">
+                    <summary>Scene voice-over & on-screen text</summary>
+                    <p>
+                      Manual scene notes remain attached to the filming plan.
+                      Adapt the script to the actual footage; no automatic
+                      timing or video edit is implied.
+                    </p>
+                    {document.plan.shots.map((shot, i) => (
+                      <article key={i}>
+                        <h4>
+                          Scene {i + 1}: {shot.scene}
+                        </h4>
+                        {(
+                          [
+                            ["narration", "Scene voice-over"],
+                            ["screenText", "On-screen text"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <label key={key}>
+                            {label}
+                            <textarea
+                              maxLength={180}
+                              value={shot[key] || ""}
+                              onChange={(e) =>
+                                changePlan({
+                                  shots: document.plan.shots.map((value, n) =>
+                                    n === i
+                                      ? { ...value, [key]: e.target.value }
+                                      : value,
+                                  ),
+                                })
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="studio-copy"
+                              onClick={() => void copyText(shot[key] || "")}
+                            >
+                              Copy {label.toLowerCase()}
+                            </button>
+                          </label>
+                        ))}
+                      </article>
+                    ))}
+                  </details>
                   {document.outputPostId && (
                     <button
                       type="button"
-                      onClick={() => navigate("Content Calendar")}
+                      onClick={() => {
+                        if (
+                          !dirty ||
+                          window.confirm(
+                            "Leave Creative Studio? Save your plan first to keep changes.",
+                          )
+                        )
+                          navigate("Content Calendar");
+                      }}
                     >
                       Open content review draft
                     </button>
@@ -981,6 +1350,20 @@ export default function CreativeDirector({
                         ))}
                     </select>
                   </label>
+                  {selectedAsset && (
+                    <div className="media-attachment-info">
+                      <strong>{selectedAsset.original_name}</strong>
+                      <span>
+                        {selectedAsset.mime_type} ·{" "}
+                        {(selectedAsset.size_bytes / 1024).toFixed(1)} KB
+                      </span>
+                      <p>
+                        {saved?.media_id === selectedAsset.id
+                          ? "Attached to saved production plan"
+                          : "Selected — save plan to attach"}
+                      </p>
+                    </div>
+                  )}
                   {selectedAsset?.url &&
                     (selectedAsset.mime_type.startsWith("image/") ? (
                       <img
@@ -1003,9 +1386,24 @@ export default function CreativeDirector({
                 </>
               )}
             </>
-          )}
+          ) : null}
         </section>
-      </div>
+      </fieldset>
+      {document && tab === "Filming checklist" && (
+        <div className="capture-savebar">
+          <span>
+            <b>
+              {document.checked.length} / {document.plan.shots.length} recorded
+            </b>
+            <small>
+              {dirty ? "Unsaved checklist changes" : "Checklist saved"}
+            </small>
+          </span>
+          <button type="button" disabled={busy} onClick={() => void save()}>
+            {busy ? "Saving…" : "Save checklist progress"}
+          </button>
+        </div>
+      )}
       <details className="creative-card">
         <summary>Quick post generator · existing tools</summary>
         {children}

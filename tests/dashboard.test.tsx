@@ -229,3 +229,34 @@ test("campaigns are inserted into database and loaded after remount", async () =
   await user.click(screen.getByRole("button", { name: "Campaign Planner" }));
   expect(await screen.findByText("Property development")).toBeTruthy();
 });
+
+test("unsaved production brief warns before dashboard navigation and cancellation preserves local edits", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.fn(() => false);
+  vi.stubGlobal("confirm", confirm);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ configured: false })),
+  );
+  await workspace();
+  await user.click(screen.getByRole("button", { name: "Creative Studio" }));
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
+  await user.type(
+    screen.getByLabelText("Specific filming instructions"),
+    "Approved visitor area only",
+  );
+  await user.click(screen.getByRole("button", { name: "Overview" }));
+  expect(confirm).toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Creative Studio" })).toBeTruthy();
+  expect(
+    (
+      screen.getByLabelText(
+        "Specific filming instructions",
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Approved visitor area only");
+  expect(mock.insert).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  await user.click(screen.getByRole("button", { name: "Overview" }));
+  expect(screen.getByRole("heading", { name: "Overview" })).toBeTruthy();
+});

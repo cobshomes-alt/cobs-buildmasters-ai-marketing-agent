@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import CreativeDirector, {
@@ -134,6 +140,7 @@ afterEach(() => {
 test("sample planning saves campaign, checklist and media choice then reopens from database records", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
   await screen.findByText(/Live AI unavailable/);
   expect(
     (
@@ -161,6 +168,7 @@ test("sample planning saves campaign, checklist and media choice then reopens fr
   expect(rows[0].status).toBe("Draft");
   cleanup();
   render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
   await user.click(screen.getByRole("button", { name: /Production plan:/ }));
   expect(
     (
@@ -192,6 +200,7 @@ test("review draft is explicit, remains Draft, links back and cannot be duplicat
     },
   ];
   render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
   await user.click(
     screen.getByRole("button", { name: "Production plan: Factory" }),
   );
@@ -230,6 +239,7 @@ test("review draft is explicit, remains Draft, links back and cannot be duplicat
 test("failed plan save retains unsaved edits and does not create a review draft", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
   await user.selectOptions(screen.getByLabelText("Campaign"), "campaign");
   await user.click(screen.getByRole("button", { name: "Create sample plan" }));
   await screen.findByText("SAMPLE TEMPLATE · NOT AI-GENERATED");
@@ -250,6 +260,7 @@ test("failed plan save retains unsaved edits and does not create a review draft"
 test("a failed link update preserves the created draft and allows explicit repair without duplication", async () => {
   const user = userEvent.setup();
   render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
   await user.selectOptions(screen.getByLabelText("Campaign"), "campaign");
   await user.click(screen.getByRole("button", { name: "Create sample plan" }));
   await screen.findByText("SAMPLE TEMPLATE · NOT AI-GENERATED");
@@ -281,4 +292,158 @@ test("a failed link update preserves the created draft and allows explicit repai
     decodePlan(rows.find((row) => row.id !== draft.id)!.body)?.outputPostId,
   ).toBe(draft.id);
   expect(rows).toHaveLength(2);
+});
+
+test("guided brief, storyboard, on-site notes and copy studio preserve edits across section navigation", async () => {
+  const user = userEvent.setup();
+  render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
+  await user.selectOptions(screen.getByLabelText("Campaign"), "campaign");
+  await user.type(screen.getByLabelText("Target audience"), "Site supervisors");
+  await user.type(
+    screen.getByLabelText("Specific filming instructions"),
+    "Film from the visitor area",
+  );
+  await user.click(screen.getByRole("checkbox", { name: "Demoulding" }));
+  await user.click(screen.getByRole("button", { name: "Create sample plan" }));
+  await screen.findByRole("heading", { name: "Visual storyboard" });
+  expect(
+    screen.getByRole("navigation", { name: "Creative Director sections" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("list", { name: "Recommended scene order" }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("heading", { name: "Stacking and curing" }),
+  ).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Filming checklist" }));
+  await user.click(
+    screen.getByRole("checkbox", { name: /Record scene 2: Demoulding/ }),
+  );
+  await user.type(
+    screen.getAllByLabelText("Retake notes")[1],
+    "Reduce wind noise",
+  );
+  await user.click(screen.getByRole("button", { name: "Creative dashboard" }));
+  expect(screen.getByText(/1 remaining|2 remaining/)).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Scripts & captions" }));
+  const clipboard = vi.spyOn(navigator.clipboard, "writeText");
+  await user.click(screen.getAllByRole("button", { name: "Copy hook" })[0]);
+  expect(clipboard).toHaveBeenCalled();
+  await user.click(screen.getAllByText("Preview this script")[0]);
+  await user.click(
+    screen.getByRole("button", { name: "Save production plan" }),
+  );
+  await screen.findByText(
+    "Production plan and checklist saved to the campaign.",
+  );
+  const doc = decodePlan(rows[0].body)!;
+  expect(doc.checked).toEqual([1]);
+  expect(doc.plan.shots[1].retake).toBe("Reduce wind noise");
+  expect(doc.brief.audience).toContain("Site supervisors");
+  expect(doc.brief.instructions).toBe("Film from the visitor area");
+  await user.click(screen.getByRole("button", { name: "Production workflow" }));
+  expect(screen.getByText(/manual handoff; no editing engine/)).toBeTruthy();
+});
+
+test("oversized manual content is rejected without replacing a saved plan", async () => {
+  const user = userEvent.setup();
+  rows = [
+    {
+      id: "existing",
+      title: "Existing plan",
+      body: encodePlan({
+        version: 1,
+        brief,
+        plan: samplePlan(brief),
+        source: "starter",
+        checked: [],
+        stage: "Filming Plan",
+        outputPostId: null,
+      }),
+      status: "Draft",
+      source: "starter",
+      campaign_id: "campaign",
+      updated_at: "revision-0",
+    },
+  ];
+  const original = rows[0].body;
+  render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
+  await user.click(screen.getByRole("button", { name: "Existing plan" }));
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
+  fireEvent.change(screen.getByLabelText("Verified evidence and constraints"), {
+    target: { value: "e".repeat(1200) },
+  });
+  await user.click(screen.getByRole("button", { name: "Scripts & captions" }));
+  fireEvent.change(screen.getAllByLabelText("Voice-over / video script")[0], {
+    target: { value: "v".repeat(1200) },
+  });
+  fireEvent.change(
+    screen.getAllByLabelText("Facebook & Instagram caption")[0],
+    { target: { value: "c".repeat(900) } },
+  );
+  fireEvent.change(
+    screen.getAllByLabelText("TikTok & YouTube description")[0],
+    { target: { value: "d".repeat(900) } },
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Save production plan" }),
+  );
+  await screen.findByText(/10,000-character workspace limit/);
+  expect(rows[0].body).toBe(original);
+  expect(writes).toHaveLength(0);
+}, 30000);
+
+test("failed AI regeneration retains the saved storyboard and never writes a sample fallback", async () => {
+  const user = userEvent.setup();
+  const original = encodePlan({
+    version: 1,
+    brief,
+    plan: samplePlan(brief),
+    source: "starter",
+    checked: [0],
+    stage: "Shot Checklist",
+    outputPostId: null,
+  });
+  rows = [
+    {
+      id: "existing",
+      title: "Saved original",
+      body: original,
+      status: "Draft",
+      source: "starter",
+      campaign_id: "campaign",
+      updated_at: "revision-0",
+    },
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: string, options?: RequestInit) =>
+      options?.method === "POST"
+        ? Response.json(
+            { error: "OpenAI credentials were rejected." },
+            { status: 502 },
+          )
+        : Response.json({ configured: true }),
+    ),
+  );
+  render(<Workspace />);
+  await user.click(screen.getByRole("button", { name: "Saved original" }));
+  await user.click(screen.getByRole("button", { name: "Production brief" }));
+  await screen.findByText(/Live AI configured/);
+  await user.click(
+    screen.getByRole("button", { name: "Generate live AI plan" }),
+  );
+  await screen.findByText("OpenAI credentials were rejected.");
+  await user.click(screen.getByRole("button", { name: "Storyboard" }));
+  expect(
+    (
+      screen.getByRole("checkbox", {
+        name: /Site or factory introduction/,
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
+  expect(rows[0].body).toBe(original);
+  expect(writes).toHaveLength(0);
 });

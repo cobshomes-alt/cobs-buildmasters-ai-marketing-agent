@@ -5,6 +5,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 
 import CreativeDirector from "./components/creative-director";
 import { isPlanningRecord } from "../lib/creative-plan";
+import BrandLogo from "./components/brand-logo";
 import Overview from "./components/overview";
 import PostAttachment from "./components/post-attachment";
 import MediaLibrary, { type Asset } from "./components/media-library";
@@ -420,12 +421,7 @@ export default function Page() {
         }}
       >
         <section style={{ ...card, width: "min(430px, 100%)" }}>
-          <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>
-            COBS
-          </div>
-          <p style={{ color: "#b18b4a", fontWeight: 700, letterSpacing: 1.2 }}>
-            BUILDMASTERS MARKETING AGENT
-          </p>
+          <BrandLogo placement="auth" />
           <h1>
             {authMode === "signIn"
               ? "Sign in to your workspace"
@@ -891,20 +887,7 @@ export default function Page() {
           color: "white",
         }}
       >
-        <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: 3 }}>
-          COBS
-        </div>
-        <div style={{ fontSize: 13, letterSpacing: 2 }}>BUILDMASTERS LTD</div>
-        <div
-          style={{
-            marginTop: 18,
-            color: "#d9bc7b",
-            fontSize: 11,
-            letterSpacing: 1.5,
-          }}
-        >
-          MARKETING AGENT
-        </div>
+        <BrandLogo placement="sidebar" />
         <nav aria-label="Workspace sections" style={{ marginTop: 34 }}>
           {modules.map((item) => (
             <button

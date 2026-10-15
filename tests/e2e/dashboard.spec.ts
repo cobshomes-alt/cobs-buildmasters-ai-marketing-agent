@@ -62,6 +62,29 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
   });
   await page.goto("/");
   await waitForOwnerWorkspace(page);
+  const logo = page.getByRole("img", { name: /COBS BUILDMASTERS LTD/ });
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .locator(".hero-mark img")
+        .evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBe(1280);
+  await expect
+    .poll(() =>
+      logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBe(1280);
+  expect(
+    await logo.evaluate((image) => {
+      const bounds = image.getBoundingClientRect();
+      return (
+        Math.abs(bounds.width - bounds.height) < 1 &&
+        getComputedStyle(image).objectFit === "contain"
+      );
+    }),
+  ).toBe(true);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
@@ -89,6 +112,16 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     page.getByText("Factory block production", { exact: true }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await logo.evaluate((image) => {
+      const bounds = image.getBoundingClientRect();
+      return (
+        bounds.left >= 0 &&
+        bounds.right <= innerWidth &&
+        Math.abs(bounds.width - bounds.height) < 1
+      );
+    }),
+  ).toBe(true);
   await expect(
     page
       .getByRole("heading", { name: "Content Calendar", exact: true })
@@ -119,4 +152,39 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     fullPage: true,
   });
   expect(errors).toEqual([]);
+});
+
+test("original JPEG branding loads without cropping on the mobile sign-in page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Sign in to your workspace" }),
+  ).toBeVisible();
+  const logo = page.getByRole("img", { name: /COBS BUILDMASTERS LTD/ });
+  await expect
+    .poll(() =>
+      logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBe(1280);
+  expect(
+    await logo.evaluate((image) => {
+      const bounds = image.getBoundingClientRect();
+      return (
+        Math.abs(bounds.width - bounds.height) < 1 &&
+        getComputedStyle(image).objectFit === "contain" &&
+        bounds.right <= innerWidth
+      );
+    }),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: ".tools/screenshots/branding-sign-in-mobile.png",
+    fullPage: true,
+  });
 });

@@ -1,3 +1,5 @@
+import BrandLogo from "./brand-logo";
+
 type Props = {
   counts: {
     drafts: number;
@@ -37,13 +39,7 @@ export default function Overview({ counts, recent, navigate }: Props) {
           </div>
         </div>
         <div className="hero-mark" aria-hidden="true">
-          <span>COBS</span>
-          <div className="block-grid">
-            {Array.from({ length: 9 }, (_, i) => (
-              <i key={i} />
-            ))}
-          </div>
-          <small>BUILD WITH CONFIDENCE</small>
+          <BrandLogo placement="hero" />
         </div>
       </section>
       <div className="stats-grid">

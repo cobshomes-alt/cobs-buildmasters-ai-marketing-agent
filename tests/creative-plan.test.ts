@@ -11,6 +11,10 @@ import {
   type Brief,
   type PlanDocument,
 } from "../lib/creative-plan";
+import {
+  VERIFIED_ACTIVITIES,
+  shotPresentation,
+} from "../lib/production-guidance";
 export const brief: Brief = {
   topic: "Film the concrete block factory",
   project: "Factory",
@@ -111,4 +115,91 @@ test("longer sample films provide enough raw footage and distinct script alterna
   ).toBeGreaterThan(90);
   expect(new Set(plan.scripts.map((script) => script.voiceover)).size).toBe(2);
   expect(new Set(plan.scripts.map((script) => script.length)).size).toBe(2);
+});
+
+test("old version-one plans remain readable and optional production details round trip", () => {
+  const plan = samplePlan(brief);
+  const old = {
+    version: 1 as const,
+    brief,
+    plan,
+    source: "starter" as const,
+    checked: [],
+    stage: "Filming Plan" as const,
+    outputPostId: null,
+  };
+  expect(decodePlan(encodePlan(old))).toEqual(old);
+  const enhanced = {
+    ...old,
+    brief: {
+      ...brief,
+      audience: "Builders",
+      product: "Blocks",
+      objective: "Educate",
+      footage: "Tripod",
+      instructions: "Stay in the visitor area",
+    },
+    plan: {
+      ...plan,
+      shots: plan.shots.map((shot, i) =>
+        i
+          ? shot
+          : {
+              ...shot,
+              retake: "Reduce wind noise",
+              narration: "Owner-confirmed process",
+              screenText: "Real factory footage",
+              purpose: "Introduce the site",
+            },
+      ),
+    },
+  };
+  expect(decodePlan(encodePlan(enhanced))).toEqual(enhanced);
+  expect(shotPresentation(plan.shots[0], 0, plan).audio).toContain(
+    "safe position",
+  );
+  expect(validBrief({ ...brief, audience: "x".repeat(241) })).toBe(false);
+});
+
+test("factory scenes include only checked activities and property renders are clearly proposed", () => {
+  const input: Brief = {
+    ...brief,
+    activity: "factory",
+    verifiedActivities: ["Demoulding", "Stacking and curing"],
+  };
+  const plan = samplePlan(input);
+  expect(plan.shots.map((shot) => shot.scene)).toContain("Demoulding");
+  expect(plan.shots.map((shot) => shot.scene)).not.toContain(
+    "Quality inspection where performed",
+  );
+  const factory = samplePlan({
+    ...input,
+    verifiedActivities: VERIFIED_ACTIVITIES.factory,
+  });
+  expect(factory.shots).toHaveLength(10);
+  expect(validPlan(factory)).toBe(true);
+  expect(
+    encodePlan({
+      version: 1,
+      brief: { ...input, verifiedActivities: VERIFIED_ACTIVITIES.factory },
+      plan: factory,
+      source: "starter",
+      checked: [],
+      stage: "Filming Plan",
+      outputPostId: null,
+    }).length,
+  ).toBeLessThanOrEqual(10000);
+  const property = samplePlan({
+    ...brief,
+    activity: "property",
+    verifiedActivities: ["Genuine architectural plans / 3D renders"],
+  });
+  expect(property.shots[1].demonstration).toContain("proposed visualisation");
+  const construction = samplePlan({
+    ...brief,
+    activity: "construction",
+    verifiedActivities: VERIFIED_ACTIVITIES.construction,
+  });
+  expect(construction.shots).toHaveLength(12);
+  expect(validPlan(construction)).toBe(true);
 });
