@@ -1,0 +1,24 @@
+[
+  {
+    "acl": [
+      "=X/postgres",
+      "postgres=X/postgres",
+      "anon=X/postgres",
+      "authenticated=X/postgres",
+      "service_role=X/postgres"
+    ],
+    "function": "cobs_is_owner()",
+    "owner": "postgres"
+  },
+  {
+    "acl": [
+      "=X/postgres",
+      "postgres=X/postgres",
+      "anon=X/postgres",
+      "authenticated=X/postgres",
+      "service_role=X/postgres"
+    ],
+    "function": "cobs_new_user_profile()",
+    "owner": "postgres"
+  }
+]

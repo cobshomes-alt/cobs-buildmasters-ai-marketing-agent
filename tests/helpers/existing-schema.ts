@@ -2,10 +2,23 @@ import type { PGlite } from "@electric-sql/pglite";
 import schema from "../fixtures/cobs-existing-schema.json";
 
 const identifier = (name: string) => '"' + name.replaceAll('"', '""') + '"';
+type CapturedSchema = Pick<
+  typeof schema,
+  | "tables"
+  | "columns"
+  | "constraints"
+  | "functions"
+  | "triggers"
+  | "policies"
+  | "grants"
+  | "media_bucket"
+>;
 export async function restoreExistingSchema(
   db: PGlite,
   users: { id: string; email: string }[],
+  capturedSchema: CapturedSchema = schema,
 ) {
+  const schema = capturedSchema;
   await db.exec(`create schema auth; create schema storage; create role anon; create role authenticated;
     create table auth.users(id uuid primary key,email text);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;

@@ -1,0 +1,913 @@
+{
+  "columns": [
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_campaigns"
+    },
+    {
+      "column_default": null,
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_campaigns"
+    },
+    {
+      "column_default": null,
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_campaigns"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_campaigns"
+    },
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": null,
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": null,
+      "column_name": "phone",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": null,
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": null,
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": null,
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_leads"
+    },
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "storage_path",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "original_name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "mime_type",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "size_bytes",
+      "data_type": "bigint",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": "''::text",
+      "column_name": "project",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": "''::text",
+      "column_name": "product",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": null,
+      "column_name": "campaign_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": "false",
+      "column_name": "deletion_pending",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "table_name": "cobs_media_assets"
+    },
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "body",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": "'Draft'::text",
+      "column_name": "status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": "'manual'::text",
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "scheduled_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "campaign_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "media_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "approved_by",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "approved_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "table_name": "cobs_posts"
+    },
+    {
+      "column_default": null,
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "table_name": "cobs_profiles"
+    },
+    {
+      "column_default": null,
+      "column_name": "email",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_profiles"
+    },
+    {
+      "column_default": "'member'::text",
+      "column_name": "role",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "table_name": "cobs_profiles"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "table_name": "cobs_profiles"
+    }
+  ],
+  "constraints": [
+    {
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT",
+      "name": "cobs_campaigns_created_by_fkey",
+      "table": "cobs_campaigns"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "cobs_campaigns_pkey",
+      "table": "cobs_campaigns"
+    },
+    {
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT",
+      "name": "cobs_leads_created_by_fkey",
+      "table": "cobs_leads"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "cobs_leads_pkey",
+      "table": "cobs_leads"
+    },
+    {
+      "definition": "FOREIGN KEY (campaign_id) REFERENCES cobs_campaigns(id) ON DELETE SET NULL",
+      "name": "cobs_media_assets_campaign_id_fkey",
+      "table": "cobs_media_assets"
+    },
+    {
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "name": "cobs_media_assets_created_by_fkey",
+      "table": "cobs_media_assets"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "cobs_media_assets_pkey",
+      "table": "cobs_media_assets"
+    },
+    {
+      "definition": "CHECK (((size_bytes > 0) AND (size_bytes <= 52428800)))",
+      "name": "cobs_media_assets_size_bytes_check",
+      "table": "cobs_media_assets"
+    },
+    {
+      "definition": "UNIQUE (storage_path)",
+      "name": "cobs_media_assets_storage_path_key",
+      "table": "cobs_media_assets"
+    },
+    {
+      "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id)",
+      "name": "cobs_posts_approved_by_fkey",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "FOREIGN KEY (campaign_id) REFERENCES cobs_campaigns(id) ON DELETE SET NULL",
+      "name": "cobs_posts_campaign_id_fkey",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT",
+      "name": "cobs_posts_created_by_fkey",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "FOREIGN KEY (media_id) REFERENCES cobs_media_assets(id) ON DELETE RESTRICT",
+      "name": "cobs_posts_media_id_fkey",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "cobs_posts_pkey",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "CHECK ((source = ANY (ARRAY['ai'::text, 'starter'::text, 'manual'::text])))",
+      "name": "cobs_posts_source_check",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "CHECK ((status = ANY (ARRAY['Draft'::text, 'Pending approval'::text, 'Approved'::text, 'Scheduled'::text, 'Rejected'::text])))",
+      "name": "cobs_posts_status_check",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "UNIQUE (email)",
+      "name": "cobs_profiles_email_key",
+      "table": "cobs_profiles"
+    },
+    {
+      "definition": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "name": "cobs_profiles_id_fkey",
+      "table": "cobs_profiles"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "cobs_profiles_pkey",
+      "table": "cobs_profiles"
+    },
+    {
+      "definition": "CHECK ((role = ANY (ARRAY['owner'::text, 'member'::text])))",
+      "name": "cobs_profiles_role_check",
+      "table": "cobs_profiles"
+    }
+  ],
+  "functions": [
+    {
+      "config": ["search_path=public"],
+      "definition": "CREATE OR REPLACE FUNCTION public.cobs_guard_media_identity()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$ begin\n  if new.deletion_pending and exists (select 1 from public.cobs_posts where media_id = old.id) then\n    raise exception 'Attached media cannot be removed';\n  end if;\n  if (new.storage_path, new.mime_type, new.size_bytes, new.created_by) is distinct from\n     (old.storage_path, old.mime_type, old.size_bytes, old.created_by) then\n    raise exception 'Upload a new asset to replace media';\n  end if;\n  return new;\nend; $function$\n",
+      "name": "cobs_guard_media_identity",
+      "security_definer": false
+    },
+    {
+      "config": ["search_path=public"],
+      "definition": "CREATE OR REPLACE FUNCTION public.cobs_guard_post()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  if not public.cobs_is_owner() then raise exception 'Owner permission required'; end if;\n  if new.media_id is not null then\n    perform 1 from public.cobs_media_assets where id = new.media_id and not deletion_pending for share;\n    if not found then raise exception 'Media is unavailable or being removed'; end if;\n  end if;\n  if char_length(trim(new.title)) not between 1 and 240 or char_length(trim(new.body)) not between 1 and 10000 then\n    raise exception 'Title or body length is invalid';\n  end if;\n  if TG_OP = 'INSERT' then\n    if new.created_by <> auth.uid() then raise exception 'Invalid author'; end if;\n    new.status := 'Draft'; new.approved_by := null; new.approved_at := null; new.scheduled_at := null;\n  else\n    if new.created_by <> old.created_by then raise exception 'Author cannot be changed'; end if;\n    if (new.title, new.body, new.media_id, new.campaign_id, new.source) is distinct from\n       (old.title, old.body, old.media_id, old.campaign_id, old.source) then\n      new.status := 'Draft'; new.approved_by := null; new.approved_at := null; new.scheduled_at := null;\n    elsif new.status is distinct from old.status then\n      -- Permit deliberate re-review of an older approval lacking audit data.\n      if not ((old.status in ('Draft','Rejected') and new.status = 'Pending approval') or\n              (old.status in ('Approved','Scheduled') and old.approved_at is null and new.status = 'Pending approval') or\n              (old.status = 'Pending approval' and new.status in ('Approved','Rejected')) or\n              (old.status = 'Approved' and new.status = 'Scheduled')) then\n        raise exception 'Invalid approval transition';\n      end if;\n      if new.status = 'Approved' then new.approved_by := auth.uid(); new.approved_at := now();\n      elsif new.status <> 'Scheduled' then new.approved_by := null; new.approved_at := null; new.scheduled_at := null;\n      end if;\n    else\n      new.approved_by := old.approved_by; new.approved_at := old.approved_at;\n    end if;\n    if new.status = 'Scheduled' and (new.approved_by is null or new.approved_at is null) then\n      raise exception 'Owner approval required before publishing readiness';\n    end if;\n  end if;\n  return new;\nend; $function$\n",
+      "name": "cobs_guard_post",
+      "security_definer": false
+    },
+    {
+      "config": ["search_path=public"],
+      "definition": "CREATE OR REPLACE FUNCTION public.cobs_is_owner()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ select exists (select 1 from public.cobs_profiles where id = auth.uid() and role = 'owner') $function$\n",
+      "name": "cobs_is_owner",
+      "security_definer": true
+    },
+    {
+      "config": ["search_path=public"],
+      "definition": "CREATE OR REPLACE FUNCTION public.cobs_new_user_profile()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nbegin\r\n  insert into public.cobs_profiles (id, email, role)\r\n  values (new.id, coalesce(new.email, ''), case when lower(coalesce(new.email, '')) = 'cobshomes@gmail.com' then 'owner' else 'member' end)\r\n  on conflict (id) do nothing;\r\n  return new;\r\nend;\r\n$function$\n",
+      "name": "cobs_new_user_profile",
+      "security_definer": true
+    },
+    {
+      "config": ["search_path=public"],
+      "definition": "CREATE OR REPLACE FUNCTION public.cobs_touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$ begin new.updated_at = now(); return new; end; $function$\n",
+      "name": "cobs_touch_updated_at",
+      "security_definer": false
+    }
+  ],
+  "grants": [
+    {
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_campaigns",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_leads",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_media_assets",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_posts",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "anon",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "DELETE",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "INSERT",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "SELECT",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    },
+    {
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE",
+      "table_name": "cobs_profiles",
+      "table_schema": "public"
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_campaigns_pkey ON public.cobs_campaigns USING btree (id)",
+      "indexname": "cobs_campaigns_pkey",
+      "schemaname": "public",
+      "tablename": "cobs_campaigns",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_leads_pkey ON public.cobs_leads USING btree (id)",
+      "indexname": "cobs_leads_pkey",
+      "schemaname": "public",
+      "tablename": "cobs_leads",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_media_assets_pkey ON public.cobs_media_assets USING btree (id)",
+      "indexname": "cobs_media_assets_pkey",
+      "schemaname": "public",
+      "tablename": "cobs_media_assets",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_media_assets_storage_path_key ON public.cobs_media_assets USING btree (storage_path)",
+      "indexname": "cobs_media_assets_storage_path_key",
+      "schemaname": "public",
+      "tablename": "cobs_media_assets",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE INDEX cobs_media_campaign_idx ON public.cobs_media_assets USING btree (campaign_id)",
+      "indexname": "cobs_media_campaign_idx",
+      "schemaname": "public",
+      "tablename": "cobs_media_assets",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_posts_pkey ON public.cobs_posts USING btree (id)",
+      "indexname": "cobs_posts_pkey",
+      "schemaname": "public",
+      "tablename": "cobs_posts",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE INDEX cobs_posts_media_idx ON public.cobs_posts USING btree (media_id)",
+      "indexname": "cobs_posts_media_idx",
+      "schemaname": "public",
+      "tablename": "cobs_posts",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_profiles_pkey ON public.cobs_profiles USING btree (id)",
+      "indexname": "cobs_profiles_pkey",
+      "schemaname": "public",
+      "tablename": "cobs_profiles",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX cobs_profiles_email_key ON public.cobs_profiles USING btree (email)",
+      "indexname": "cobs_profiles_email_key",
+      "schemaname": "public",
+      "tablename": "cobs_profiles",
+      "tablespace": null
+    }
+  ],
+  "media_bucket": [
+    {
+      "allowed_mime_types": [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "video/mp4",
+        "video/quicktime"
+      ],
+      "file_size_limit": 52428800,
+      "id": "cobs-media",
+      "public": false
+    }
+  ],
+  "migration_history_table": "supabase_migrations.schema_migrations",
+  "policies": [
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "organization members delete campaign media",
+      "qual": "((bucket_id = 'campaign-media'::text) AND (EXISTS ( SELECT 1\n   FROM media_assets m\n  WHERE ((m.storage_path = objects.name) AND same_org(m.organization_id)))))",
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "organization members upload campaign media",
+      "qual": null,
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": "((bucket_id = 'campaign-media'::text) AND (EXISTS ( SELECT 1\n   FROM media_assets m\n  WHERE ((m.storage_path = objects.name) AND same_org(m.organization_id)))))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "organization members view campaign media",
+      "qual": "((bucket_id = 'campaign-media'::text) AND (EXISTS ( SELECT 1\n   FROM media_assets m\n  WHERE ((m.storage_path = objects.name) AND same_org(m.organization_id)))))",
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner reads media",
+      "qual": "((bucket_id = 'cobs-media'::text) AND cobs_is_owner())",
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner removes unused media",
+      "qual": "((bucket_id = 'cobs-media'::text) AND cobs_is_owner() AND (NOT (EXISTS ( SELECT 1\n   FROM (cobs_media_assets a\n     JOIN cobs_posts p ON ((p.media_id = a.id)))\n  WHERE (a.storage_path = objects.name)))))",
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner uploads media",
+      "qual": null,
+      "roles": ["authenticated"],
+      "schemaname": "storage",
+      "tablename": "objects",
+      "with_check": "((bucket_id = 'cobs-media'::text) AND cobs_is_owner() AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner manages COBS campaigns",
+      "qual": "cobs_is_owner()",
+      "roles": ["public"],
+      "schemaname": "public",
+      "tablename": "cobs_campaigns",
+      "with_check": "cobs_is_owner()"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner manages COBS leads",
+      "qual": "cobs_is_owner()",
+      "roles": ["public"],
+      "schemaname": "public",
+      "tablename": "cobs_leads",
+      "with_check": "cobs_is_owner()"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner reads own profile",
+      "qual": "(id = auth.uid())",
+      "roles": ["public"],
+      "schemaname": "public",
+      "tablename": "cobs_profiles",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner manages COBS posts",
+      "qual": "cobs_is_owner()",
+      "roles": ["public"],
+      "schemaname": "public",
+      "tablename": "cobs_posts",
+      "with_check": "cobs_is_owner()"
+    },
+    {
+      "cmd": "ALL",
+      "permissive": "PERMISSIVE",
+      "policyname": "owner manages cobs media assets",
+      "qual": "cobs_is_owner()",
+      "roles": ["public"],
+      "schemaname": "public",
+      "tablename": "cobs_media_assets",
+      "with_check": "cobs_is_owner()"
+    }
+  ],
+  "server_version": "17.11",
+  "tables": [
+    {
+      "estimated_rows": -1,
+      "force_rls": false,
+      "name": "cobs_campaigns",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "estimated_rows": -1,
+      "force_rls": false,
+      "name": "cobs_leads",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "estimated_rows": -1,
+      "force_rls": false,
+      "name": "cobs_media_assets",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "estimated_rows": -1,
+      "force_rls": false,
+      "name": "cobs_posts",
+      "rls": true,
+      "schema": "public"
+    },
+    {
+      "estimated_rows": -1,
+      "force_rls": false,
+      "name": "cobs_profiles",
+      "rls": true,
+      "schema": "public"
+    }
+  ],
+  "triggers": [
+    {
+      "definition": "CREATE TRIGGER cobs_auth_user_profile AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION cobs_new_user_profile()",
+      "enabled": "O",
+      "name": "cobs_auth_user_profile",
+      "schema": "auth",
+      "table": "users"
+    },
+    {
+      "definition": "CREATE TRIGGER cobs_post_approval_guard BEFORE INSERT OR UPDATE ON public.cobs_posts FOR EACH ROW EXECUTE FUNCTION cobs_guard_post()",
+      "enabled": "O",
+      "name": "cobs_post_approval_guard",
+      "schema": "public",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "CREATE TRIGGER cobs_posts_updated_at BEFORE UPDATE ON public.cobs_posts FOR EACH ROW EXECUTE FUNCTION cobs_touch_updated_at()",
+      "enabled": "O",
+      "name": "cobs_posts_updated_at",
+      "schema": "public",
+      "table": "cobs_posts"
+    },
+    {
+      "definition": "CREATE TRIGGER cobs_media_identity_guard BEFORE UPDATE ON public.cobs_media_assets FOR EACH ROW EXECUTE FUNCTION cobs_guard_media_identity()",
+      "enabled": "O",
+      "name": "cobs_media_identity_guard",
+      "schema": "public",
+      "table": "cobs_media_assets"
+    }
+  ]
+}

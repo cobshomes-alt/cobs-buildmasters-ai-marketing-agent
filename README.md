@@ -67,6 +67,8 @@ Preview URLs expire after one hour; Refresh renews them. Supported originals are
 
 ## Verification
 
+See the [security and re-authentication handoff](SECURITY_VERIFICATION_HANDOFF.md) for current results, pending work and privacy exclusions. P1 is applied; P2 remains pending. The [security proposal directory](supabase/security-proposals/README.md) contains reviewed reference patches, not automatically executable migrations.
+
 ```powershell
 npm test
 npm run test:e2e

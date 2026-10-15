@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, test, expect, vi } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Page from "../app/page";
 
@@ -88,6 +88,50 @@ async function workspace() {
   render(<Page />);
   await screen.findByRole("heading", { name: "Overview" });
 }
+
+test("reauthentication retains navigation and a late auth response cannot overwrite connected status", async () => {
+  const ownerSession = mock.session;
+  let notify: (event: string, next: any) => void = () => {};
+  let finishLogin!: () => void;
+  mock.client.auth.onAuthStateChange = (callback: typeof notify) => {
+    notify = callback;
+    return { data: { subscription: { unsubscribe: vi.fn() } } };
+  };
+  mock.client.auth.signOut = async () => {
+    mock.session = null;
+    notify("SIGNED_OUT", null);
+    return { error: null };
+  };
+  mock.client.auth.signInWithPassword = () => {
+    mock.session = ownerSession;
+    notify("SIGNED_IN", ownerSession);
+    return new Promise((resolve) => {
+      finishLogin = () =>
+        resolve({ data: { session: ownerSession }, error: null });
+    });
+  };
+  const user = userEvent.setup();
+  await workspace();
+  await user.click(screen.getByRole("button", { name: "Content Calendar" }));
+  await user.click(screen.getByRole("button", { name: "Sign out" }));
+  await screen.findByRole("heading", { name: "Sign in to your workspace" });
+  await user.type(screen.getByLabelText("Email"), "cobshomes@gmail.com");
+  await user.type(screen.getByLabelText("Password"), "mock-password-only");
+  await user.click(screen.getByRole("button", { name: /^Sign in$/ }));
+  await screen.findByRole("navigation", { name: "Workspace sections" });
+  expect(screen.queryByRole("heading", { name: "Overview" })).toBeNull();
+  expect(
+    screen.getAllByRole("heading", { name: "Content Calendar" }).length,
+  ).toBeGreaterThan(0);
+  await screen.findByText("Secure Supabase workspace connected.", {
+    exact: false,
+  });
+  await act(async () => finishLogin());
+  expect(
+    screen.getByText("Secure Supabase workspace connected.", { exact: false }),
+  ).toBeTruthy();
+  expect(mock.insert).not.toHaveBeenCalled();
+});
 test("missing configuration displays sign in and an actionable status", async () => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
   render(<Page />);

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForOwnerWorkspace } from "./workspace";
 
 test("owner dashboard saves drafts and renders without mobile overflow (mocked Supabase)", async ({
   page,
@@ -60,6 +61,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     });
   });
   await page.goto("/");
+  await waitForOwnerWorkspace(page);
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();

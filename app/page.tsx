@@ -191,11 +191,12 @@ export default function Page() {
       return;
     }
     setPassword("");
-    setNotice(
-      authMode === "signUp"
-        ? "Account created. Check your email to confirm it, then sign in."
-        : "Signed in. Loading workspace…",
-    );
+    // Workspace loading owns the sign-in status. Its reads may finish before
+    // signInWithPassword resolves; do not overwrite a connected/error status.
+    if (authMode === "signUp")
+      setNotice(
+        "Account created. Check your email to confirm it, then sign in.",
+      );
   };
 
   const resendConfirmation = async () => {
