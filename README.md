@@ -47,6 +47,8 @@ Keep credentials in ignored `.env.local`. Never place the OpenAI key in a `NEXT_
 
 In your **existing** Supabase project:
 
+**For COBS project `ldnyctzrgcpcjmhnrpms`, the reviewed reconciliation version `20261015002801` was approved, applied and registered on 15 October 2026. See the [migration review](supabase/MIGRATION_REVIEW.md) and [completion report](supabase/MIGRATION_COMPLETION.md). Do not replay the historical setup files below or run unfiltered `db push`: the two older reference versions remain unrecorded. The following numbered steps describe historical setup only.**
+
 1. Apply `supabase/migrations/202610140002_secure_workspace.sql` if not already applied.
 2. Review and apply `supabase/migrations/202610140003_dashboard_media.sql` once. This session did not apply migrations to a hosted project.
 3. Enable email confirmation. Configure Auth Site URL and redirect allowlist for your development origin (`http://localhost:3000`) and any separately approved deployment origin.
@@ -76,4 +78,4 @@ npm audit
 
 The browser test starts and stops a dedicated local Next dev server on port 3100. Close other servers on that port first. It uses installed Google Chrome, fake Supabase values and mocked requests, with no OpenAI key. Screenshots are written to `.tools/screenshots/`.
 
-PGlite tests execute migrations and PostgreSQL approval/RLS rules with test Auth/Storage schemas. They do not run the real Supabase Auth or Storage services. Dashboard/API tests mock external connections. Live email delivery, uploads, cross-device hosted persistence and AI responses require verification against your configured project.
+PGlite tests execute migrations and PostgreSQL approval/RLS rules with test Auth/Storage schemas. They do not run the real Supabase Auth or Storage services. Dashboard/API tests mock external connections. Hosted owner authentication, campaign/draft persistence after reload, approval transitions and synthetic image upload/preview/removal were subsequently verified: see [the live verification report](supabase/LIVE_VERIFICATION_REPORT.md). Cross-device persistence, a real second-user browser session, video uploads, email delivery and AI responses remain unverified. See [the security and migration baseline review](supabase/SECURITY_AND_BASELINE_REVIEW.md) before changing security settings or running automatic migrations.
