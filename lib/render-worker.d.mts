@@ -1,6 +1,22 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Recipe } from "./studio-model.mjs";
 import type { SequenceRecipe } from "./sequence-model.mjs";
+import type { Effects } from "./cinematic-model.mjs";
+export function render(
+  id: string,
+  recipe: Recipe,
+  kind: "image" | "video",
+  token: string,
+  options?: {
+    input?: string;
+    effects?: Effects;
+    photoVideo?: boolean;
+    silence?: boolean;
+    layerInput?: string;
+    timeout?: number;
+    maxBytes?: number;
+  },
+): Promise<string>;
 export type JobRow = {
   id: string;
   owner: string;
@@ -80,4 +96,10 @@ export function probe(path: string): Promise<{
   format: { duration: string };
 }>;
 export function tick(db: DatabaseSync, workerToken: string): Promise<boolean>;
+export function renderSequence(
+  id: string,
+  sequence: SequenceRecipe,
+  token: string,
+  allowed?: () => boolean,
+): Promise<string>;
 export function cleanup(db: DatabaseSync): void;

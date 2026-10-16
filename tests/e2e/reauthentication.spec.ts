@@ -48,6 +48,7 @@ test("owner reauthenticates from Media Library without an Overview readiness ass
   });
   await page.goto("/");
   await openWorkspaceSection(page, "Media Library");
+  await page.getByText("My account", { exact: true }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Sign in to your workspace" }),
@@ -55,7 +56,9 @@ test("owner reauthenticates from Media Library without an Overview readiness ass
   await expect(
     page.getByRole("navigation", { name: "Workspace sections" }),
   ).toHaveCount(0);
-  await page.getByLabel("Email", { exact: true }).fill("cobshomes@gmail.com");
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill("cobshomes@gmail.com");
   await page.getByLabel("Password", { exact: true }).fill("mock-password-only");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await waitForOwnerWorkspace(page);

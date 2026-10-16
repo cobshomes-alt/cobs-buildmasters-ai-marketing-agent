@@ -123,8 +123,11 @@ export default function CreativeDirector({
       if (
         target &&
         ((target.closest('nav[aria-label="Workspace sections"]') &&
-          target.textContent?.trim() !== "Creative Studio") ||
-          ["Refresh", "Sign out"].includes(target.textContent?.trim() || "")) &&
+          target.getAttribute("data-workspace-section") !==
+            "Creative Studio") ||
+          ["Refresh", "Refresh workspace", "Sign out"].includes(
+            target.textContent?.trim() || "",
+          )) &&
         !window.confirm(
           "Leave Creative Studio and discard unsaved changes? Save your plan first to keep them.",
         )

@@ -86,7 +86,9 @@ afterEach(() => {
 });
 async function workspace() {
   render(<Page />);
-  await screen.findByRole("heading", { name: "Overview" });
+  await screen.findByRole("heading", {
+    name: "What would you like to create?",
+  });
 }
 
 test("reauthentication retains navigation and a late auth response cannot overwrite connected status", async () => {
@@ -112,16 +114,22 @@ test("reauthentication retains navigation and a late auth response cannot overwr
   };
   const user = userEvent.setup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Content Calendar" }));
+  await user.click(screen.getByRole("button", { name: "My Posts" }));
+  await user.click(screen.getByText("My account", { exact: true }));
   await user.click(screen.getByRole("button", { name: "Sign out" }));
   await screen.findByRole("heading", { name: "Sign in to your workspace" });
-  await user.type(screen.getByLabelText("Email"), "cobshomes@gmail.com");
+  await user.type(
+    screen.getByLabelText("Email address"),
+    "cobshomes@gmail.com",
+  );
   await user.type(screen.getByLabelText("Password"), "mock-password-only");
   await user.click(screen.getByRole("button", { name: /^Sign in$/ }));
   await screen.findByRole("navigation", { name: "Workspace sections" });
-  expect(screen.queryByRole("heading", { name: "Overview" })).toBeNull();
   expect(
-    screen.getAllByRole("heading", { name: "Content Calendar" }).length,
+    screen.queryByRole("heading", { name: "What would you like to create?" }),
+  ).toBeNull();
+  expect(
+    screen.getAllByRole("heading", { name: "My Posts" }).length,
   ).toBeGreaterThan(0);
   await act(async () => finishLogin());
   expect(
@@ -134,7 +142,7 @@ test("missing configuration displays sign in and an actionable status", async ()
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
   render(<Page />);
   expect(
-    await screen.findByText("Supabase environment variables need attention.", {
+    await screen.findByText("Your workspace is temporarily unavailable.", {
       exact: false,
     }),
   ).toBeTruthy();
@@ -151,12 +159,14 @@ test("nonowner cannot open dashboard", async () => {
       { exact: false },
     ),
   ).toBeTruthy();
-  expect(screen.queryByRole("heading", { name: "Overview" })).toBeNull();
+  expect(
+    screen.queryByRole("heading", { name: "What would you like to create?" }),
+  ).toBeNull();
 });
 test("manual draft uses database and survives a fresh workspace mount", async () => {
   const user = userEvent.setup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Content Calendar" }));
+  await user.click(screen.getByRole("button", { name: "My Posts" }));
   await user.click(screen.getByRole("button", { name: "Save as draft" }));
   await waitFor(() =>
     expect(mock.insert).toHaveBeenCalledWith(
@@ -170,7 +180,7 @@ test("manual draft uses database and survives a fresh workspace mount", async ()
   );
   cleanup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Content Calendar" }));
+  await user.click(screen.getByRole("button", { name: "My Posts" }));
   expect(
     await screen.findByText("Build stronger with COBS concrete blocks"),
   ).toBeTruthy();
@@ -189,7 +199,7 @@ test("AI generation never claims saved when database rejects the draft", async (
   );
   const user = userEvent.setup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Creative Studio" }));
+  await user.click(screen.getByRole("button", { name: "Plan Content" }));
   await user.click(screen.getByRole("button", { name: "Generate AI post" }));
   expect(await screen.findByText(/Draft could not be saved/)).toBeTruthy();
   expect(
@@ -211,7 +221,7 @@ test("media library is accessible and shows an empty state", async () => {
 test("campaigns are inserted into database and loaded after remount", async () => {
   const user = userEvent.setup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Campaign Planner" }));
+  await user.click(screen.getByRole("button", { name: "Projects" }));
   await user.type(
     screen.getByLabelText("Campaign name"),
     "Property development",
@@ -224,7 +234,7 @@ test("campaigns are inserted into database and loaded after remount", async () =
   });
   cleanup();
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Campaign Planner" }));
+  await user.click(screen.getByRole("button", { name: "Projects" }));
   expect(await screen.findByText("Property development")).toBeTruthy();
 });
 
@@ -237,15 +247,15 @@ test("unsaved production brief warns before dashboard navigation and cancellatio
     vi.fn(async () => Response.json({ configured: false })),
   );
   await workspace();
-  await user.click(screen.getByRole("button", { name: "Creative Studio" }));
+  await user.click(screen.getByRole("button", { name: "Plan Content" }));
   await user.click(screen.getByRole("button", { name: "Production brief" }));
   await user.type(
     screen.getByLabelText("Specific filming instructions"),
     "Approved visitor area only",
   );
-  await user.click(screen.getByRole("button", { name: "Overview" }));
+  await user.click(screen.getByRole("button", { name: "Home" }));
   expect(confirm).toHaveBeenCalled();
-  expect(screen.getByRole("heading", { name: "Creative Studio" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Plan Content" })).toBeTruthy();
   expect(
     (
       screen.getByLabelText(
@@ -255,6 +265,8 @@ test("unsaved production brief warns before dashboard navigation and cancellatio
   ).toBe("Approved visitor area only");
   expect(mock.insert).not.toHaveBeenCalled();
   confirm.mockReturnValue(true);
-  await user.click(screen.getByRole("button", { name: "Overview" }));
-  expect(screen.getByRole("heading", { name: "Overview" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Home" }));
+  expect(
+    screen.getByRole("heading", { name: "What would you like to create?" }),
+  ).toBeTruthy();
 });

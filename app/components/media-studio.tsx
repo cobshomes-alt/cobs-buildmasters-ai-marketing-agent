@@ -13,53 +13,122 @@ import {
 } from "../../lib/studio-model.mjs";
 import type { RenderJob } from "../../lib/render-worker.mjs";
 import ProductionWorkspace from "./production-workspace";
+import type { StudioEntry } from "./product-shell";
 export default function MediaStudio(
   props: React.ComponentProps<typeof SingleSourceStudio> & {
     onAssets: (assets: Asset[]) => void;
+    entry?: StudioEntry;
+    onEntryChange?: (mode: StudioEntry) => void;
+    onNavigate?: (s: string) => void;
   },
 ) {
-  const [mode, setMode] = useState<"production" | "photo">("production"),
-    [dirty, setDirty] = useState(false);
+  const [mode, setMode] = useState<StudioEntry>(props.entry || "choose"),
+    [dirty, setDirty] = useState(false),
+    [photoVisited, setPhotoVisited] = useState(props.entry === "photo");
+  useEffect(() => {
+    setMode(props.entry || "choose");
+    if (props.entry === "photo") setPhotoVisited(true);
+  }, [props.entry]);
+  const choose = (next: StudioEntry) => {
+    if (
+      mode === "photo" &&
+      next !== mode &&
+      dirty &&
+      !window.confirm(
+        "Keep your downloaded work before leaving this editor. Continue?",
+      )
+    )
+      return;
+    if (next === "photo") setPhotoVisited(true);
+    setMode(next);
+    props.onEntryChange?.(next);
+  };
   return (
     <div className="premium-media-suite">
-      <nav className="editor-mode-tabs" aria-label="Editor modes">
+      <nav className="studio-mode-switch" aria-label="Editor modes">
         <button
-          aria-current={mode === "production" ? "page" : undefined}
-          onClick={() => {
-            if (
-              mode === "production" ||
-              !dirty ||
-              window.confirm("Discard unsaved production edits?")
-            )
-              setMode("production");
-          }}
+          aria-current={mode === "automatic" ? "page" : undefined}
+          onClick={() => choose("automatic")}
         >
-          Multi-asset production
+          Create with AI
+        </button>
+        <button
+          aria-current={mode === "manual" ? "page" : undefined}
+          onClick={() => choose("manual")}
+        >
+          Edit Myself
         </button>
         <button
           aria-current={mode === "photo" ? "page" : undefined}
-          onClick={() => {
-            if (
-              mode === "photo" ||
-              !dirty ||
-              window.confirm("Discard unsaved production edits?")
-            )
-              setMode("photo");
-          }}
+          onClick={() => choose("photo")}
         >
-          Photo &amp; single-source exports
+          Photo editor
+        </button>
+        <button className="mode-help" onClick={() => choose("choose")}>
+          Choose a mode
         </button>
       </nav>
-      {mode === "production" ? (
+      {mode === "choose" && (
+        <section
+          className="studio-choice"
+          aria-label="Choose your editing mode"
+        >
+          <p className="eyebrow">YOUR FOOTAGE. YOUR STORY.</p>
+          <h2>How would you like to create?</h2>
+          <p>
+            Start with a plan, or take the controls. You can switch at any time.
+          </p>
+          <div className="creation-actions">
+            <button
+              className="creation-action action-0"
+              onClick={() => choose("automatic")}
+            >
+              <span className="creation-icon" aria-hidden="true">
+                ✦
+              </span>
+              <div>
+                <h3>Create with AI</h3>
+                <p>
+                  Describe your video. Review an automatic plan, then make it
+                  your own.
+                </p>
+                <small>
+                  Rule-based planning available. Visual AI not connected.
+                </small>
+              </div>
+            </button>
+            <button
+              className="creation-action"
+              onClick={() => choose("manual")}
+            >
+              <span className="creation-icon" aria-hidden="true">
+                ▣
+              </span>
+              <div>
+                <h3>Edit Myself</h3>
+                <p>Arrange your clips, add music and shape every moment.</p>
+                <small>Your originals are never overwritten.</small>
+              </div>
+            </button>
+          </div>
+        </section>
+      )}
+      <div hidden={mode !== "automatic" && mode !== "manual"}>
         <ProductionWorkspace
           client={props.client}
           assets={props.assets}
           campaigns={props.campaigns}
           onAssets={props.onAssets}
           onDirty={setDirty}
+          planningMode={mode === "automatic"}
+          onManual={() => choose("manual")}
+          onNavigate={props.onNavigate}
         />
-      ) : (
-        <SingleSourceStudio {...props} />
+      </div>
+      {photoVisited && (
+        <div hidden={mode !== "photo"}>
+          <SingleSourceStudio {...props} />
+        </div>
       )}
     </div>
   );
@@ -170,9 +239,11 @@ function SingleSourceStudio({
       if (
         target &&
         ((target.closest('nav[aria-label="Workspace sections"]') &&
-          target.textContent?.trim() !== "Media Studio") ||
-          target.closest('nav[aria-label="Editor modes"]') ||
-          ["Refresh", "Sign out"].includes(target.textContent?.trim() || "")) &&
+          target.getAttribute("data-workspace-section") !== "Media Studio") ||
+          (busy && target.closest('nav[aria-label="Editor modes"]')) ||
+          ["Refresh", "Refresh workspace", "Sign out"].includes(
+            target.textContent?.trim() || "",
+          )) &&
         (busy ||
           !window.confirm("Leave Media Studio and discard unsaved edits?"))
       ) {

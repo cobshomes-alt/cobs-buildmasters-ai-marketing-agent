@@ -17,9 +17,25 @@ export default function SequenceExport({
   const [jobs, setJobs] = useState<RenderJob[]>([]),
     [ready, setReady] = useState(false),
     [captionsReady, setCaptionsReady] = useState(false),
+    [constructionReady, setConstructionReady] = useState(false),
+    [cinematicReady, setCinematicReady] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const lock = useRef(false);
+  const [preview, setPreview] = useState("");
+  const previewUrl = useRef("");
+  useEffect(
+    () => () => {
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    setMessage("");
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = "";
+    setPreview("");
+  }, [doc]);
   const api = useCallback(
     async (path: string, payload?: unknown) => {
       const { data } = await client.auth.getSession();
@@ -49,9 +65,17 @@ export default function SequenceExport({
           result.sequenceReady === true,
         jobs: result.jobs as RenderJob[],
         captionsReady: result.timedCaptionsReady === true,
+        constructionReady: result.constructionReady === true,
+        cinematicReady: result.cinematicReady === true,
       };
     } catch {
-      return { ready: false, captionsReady: false, jobs: [] as RenderJob[] };
+      return {
+        ready: false,
+        captionsReady: false,
+        constructionReady: false,
+        cinematicReady: false,
+        jobs: [] as RenderJob[],
+      };
     }
   }, [api]);
   useEffect(() => {
@@ -61,6 +85,8 @@ export default function SequenceExport({
       if (live) {
         setReady(result.ready);
         setCaptionsReady(result.captionsReady);
+        setCinematicReady(result.cinematicReady);
+        setConstructionReady(result.constructionReady);
         setJobs(result.jobs);
       }
     };
@@ -74,9 +100,18 @@ export default function SequenceExport({
     };
   }, [poll]);
   let invalid = "";
+  const needsConstruction = doc.clips.some(
+    (c) =>
+      c.effects?.grade ||
+      c.effects?.speed !== undefined ||
+      c.effects?.logoEnding !== undefined,
+  );
   const needsCaptions = doc.clips.some((c) => c.recipe.captions?.length);
+  const needsCinematic =
+    doc.clips.some((c) => c.effects || c.transition) ||
+    !!doc.audioTracks?.length;
   try {
-    sequenceSnapshot(doc.clips);
+    sequenceSnapshot(doc.clips, doc.audioTracks);
   } catch (e) {
     invalid = e instanceof Error ? e.message : "Invalid timeline.";
   }
@@ -102,8 +137,8 @@ export default function SequenceExport({
     >
       <h3>Export your sequence</h3>
       <p>
-        MP4 with hard cuts, clip edits and original audio. Up to 12 clips, 6
-        originals, 60 seconds and 50 MiB of source files.
+        MP4 with supported transitions, motion, layered visuals and audio. Up to
+        12 clips, 6 originals, 60 seconds and 50 MiB of source files.
       </p>
       <p className="muted">
         Exports capture the current timeline; they do not save your project or
@@ -115,7 +150,9 @@ export default function SequenceExport({
           busy ||
           !ready ||
           Boolean(invalid) ||
-          (needsCaptions && !captionsReady)
+          (needsCaptions && !captionsReady) ||
+          (needsCinematic && !cinematicReady) ||
+          (needsConstruction && !constructionReady)
         }
         aria-describedby="sequence-export-help"
         onClick={() =>
@@ -141,10 +178,41 @@ export default function SequenceExport({
             ? "Local render worker unavailable. See Settings."
             : needsCaptions && !captionsReady
               ? "Start the updated worker for timed captions."
-              : "Ready to render locally; no AI credits used.")}
+              : needsConstruction && !constructionReady
+                ? "Start the version 5 worker for construction grading, speed and logo endings."
+                : needsCinematic && !cinematicReady
+                  ? "Start the version 4 worker for cinematic effects and separate audio."
+                  : "Ready to render locally; no AI credits used.")}
       </p>
       {message && <p role="status">{message}</p>}
-      <details>
+      {preview && (
+        <section
+          className="finished-preview"
+          aria-label="Finished video preview"
+        >
+          <h4>Finished export preview</h4>
+          <video
+            src={preview}
+            controls
+            playsInline
+            onError={() =>
+              setMessage(
+                "This export could not be played. Download it to inspect it, or retry the export.",
+              )
+            }
+          />
+          <button
+            onClick={() => {
+              URL.revokeObjectURL(previewUrl.current);
+              previewUrl.current = "";
+              setPreview("");
+            }}
+          >
+            Close finished preview
+          </button>
+        </section>
+      )}
+      <details open={jobs.some((j) => j.state === "completed")}>
         <summary>Private export jobs ({jobs.length})</summary>
         {jobs.map((job) => (
           <article key={job.id}>
@@ -153,6 +221,29 @@ export default function SequenceExport({
               {job.state} · {new Date(job.created).toLocaleString()}
             </p>
             {job.error && <p>{job.error}</p>}
+            {job.state === "completed" && job.kind === "video" && (
+              <>
+                {" "}
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      const blob = await (
+                        await api(
+                          `/api/studio?download=${encodeURIComponent(job.id)}`,
+                        )
+                      ).blob();
+                      if (previewUrl.current)
+                        URL.revokeObjectURL(previewUrl.current);
+                      previewUrl.current = URL.createObjectURL(blob);
+                      setPreview(previewUrl.current);
+                    })
+                  }
+                >
+                  Preview finished MP4
+                </button>
+              </>
+            )}
             {job.state === "completed" && (
               <button
                 disabled={busy}

@@ -1,14 +1,18 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { readFileSync, writeFileSync } from "node:fs";
-import { waitForOwnerWorkspace } from "./workspace";
+import { waitForOwnerWorkspace, openWorkspaceSection } from "./workspace";
 import {
   generateEditingPlan,
   type MediaFacts,
 } from "../../lib/automatic-editing";
+test.use({ video: "on" });
 test("premium mixed-media timeline arranges twenty originals, saves/reopens and fits desktop/mobile (mocked services)", async ({
   page,
 }) => {
-  test.setTimeout(120000);
+  // Two director proposals, export/download, twenty-source editing and three layouts.
+  test.setTimeout(240000);
+  page.setDefaultTimeout(15000);
   const owner = "11111111-1111-4111-8111-111111111111";
   let saved: any = null;
   let exportRequest: any = null;
@@ -116,6 +120,8 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
         workerOnline: true,
         sequenceReady: true,
         timedCaptionsReady: true,
+        cinematicReady: true,
+        constructionReady: true,
         jobs: exported
           ? [
               {
@@ -165,9 +171,7 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   await page.route("**/api/studio?download=**", (route) =>
     route.fulfill({
       contentType: "video/mp4",
-      body: Buffer.from(
-        "mock-download-only; real MP4 playback has a separate test",
-      ),
+      body: readFileSync(".tools/delivery/media-studio/synthetic-edited.mp4"),
     }),
   );
   await page.goto("/");
@@ -177,10 +181,14 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
     path: ".tools/screenshots/premium-overview.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
+  await openWorkspaceSection(page, "Media Studio");
   await expect(
-    page.getByRole("heading", { name: "Shape the story." }),
+    page.getByRole("heading", { name: "Your editing studio" }),
   ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Editor modes" })
+    .getByRole("button", { name: "Create with AI", exact: true })
+    .click();
   const director = page.getByRole("region", {
     name: "Automatic Editing Director",
     exact: true,
@@ -221,6 +229,16 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  const brandGeometry = await page.locator(".product-brand").evaluate((el) => {
+    const logo = el.querySelector("img")!.getBoundingClientRect(),
+      label = el.querySelector(":scope > span")!.getBoundingClientRect();
+    return {
+      overlap: logo.right > label.left,
+      ratio: logo.width / logo.height,
+    };
+  });
+  expect(brandGeometry.overlap).toBe(false);
+  expect(brandGeometry.ratio).toBeCloseTo(1, 2);
   await page.screenshot({
     path: ".tools/screenshots/automatic-director-mobile.png",
     fullPage: true,
@@ -228,17 +246,172 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   await director
     .getByRole("button", { name: "Use plan as editable timeline" })
     .click();
+  const assistant = page.getByRole("region", {
+    name: "Ask COBS AI",
+    exact: true,
+  });
+  await assistant
+    .getByLabel("What would you like to change?")
+    .fill("Make this video more cinematic");
+  await assistant
+    .getByRole("button", { name: "Propose edit", exact: true })
+    .click();
+  await expect(
+    assistant.getByRole("heading", { name: "Proposed changes" }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await assistant.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: ".tools/screenshots/milestone-c-assistant.png",
+    fullPage: true,
+  });
+  await assistant.getByRole("button", { name: "Apply proposed edit" }).click();
+  await expect(assistant.getByRole("status")).toContainText("Edit applied");
+  await assistant.getByRole("button", { name: "Undo last edit" }).click();
+  await expect(assistant.getByRole("status")).toContainText("restored");
+  await assistant
+    .getByRole("button", { name: "Cinematic Construction" })
+    .click();
+  await assistant.getByRole("button", { name: "Apply proposed edit" }).click();
+  await page.screenshot({
+    path: ".tools/screenshots/milestone-c-completed-edit.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await assistant.scrollIntoViewIfNeeded();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: ".tools/screenshots/milestone-c-mobile.png",
+    fullPage: true,
+  });
+  await assistant.getByRole("button", { name: "Undo last edit" }).click();
+  const evaluation = page.getByText("Local motion graphics evaluation", {
+    exact: true,
+  });
+  if (await evaluation.isVisible()) {
+    await page.getByRole("button", { name: "Text", exact: true }).click();
+    await page
+      .getByLabel("Clip title overlay", { exact: true })
+      .fill("Synthetic Remotion title");
+    await evaluation.click();
+    await page
+      .getByLabel("Preview evaluation graphics", { exact: true })
+      .check();
+    await page.getByLabel("Sequence playhead", { exact: true }).fill("0.8");
+    await expect(page.locator(".production-frame svg")).toBeVisible();
+    await expect(page.locator(".production-frame svg")).toContainText(
+      "Synthetic Remotion title",
+    );
+    await page
+      .getByLabel("Preview evaluation graphics", { exact: true })
+      .uncheck();
+    test.info().annotations.push({
+      type: "local-remotion-evaluation-preview",
+      description:
+        "Owner-only mocked editor preview toggled; standard export preserved",
+    });
+  }
   await page.getByLabel("Clip display duration", { exact: true }).fill("3");
   await page.getByRole("button", { name: "Move later", exact: true }).click();
+  const recoveryDownload = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download project file", exact: true })
+    .click();
+  const recoveryPath = await (await recoveryDownload).path();
+  await page.getByLabel("Clip display duration", { exact: true }).fill("4");
+  page.once("dialog", (d) => d.accept());
+  await page
+    .getByLabel("Open project file", { exact: true })
+    .setInputFiles(recoveryPath!);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Project file opened" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Select clip 2: SYNTHETIC photo 01",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByLabel("Clip display duration", { exact: true }),
+  ).toHaveValue("3");
+  await page.getByRole("button", { name: "Effects", exact: true }).click();
+  await page.getByLabel("Two-keyframe zoom / pan", { exact: true }).check();
+  await page.getByRole("button", { name: "Templates", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Title template", exact: true })
+    .selectOption("lower-third");
+  await page.getByLabel("Fade in title", { exact: true }).check();
+  await page.getByRole("button", { name: "Transitions", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Outgoing transition", exact: true })
+    .selectOption("fade");
+  await page.getByRole("button", { name: "Graphics", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Picture-in-picture original", exact: true })
+    .selectOption(assets[9].id);
   await page
     .getByRole("button", { name: "Export combined MP4", exact: true })
     .click();
   await expect.poll(() => exportRequest?.clips?.length).toBe(6);
   expect(exportRequest.clips[1].mediaId).toBe(assets[0].id);
   expect(exportRequest.clips[1].recipe.duration).toBe(3);
+  expect(exportRequest.clips[1].effects.motion.toScale).toBe(1.15);
+  expect(exportRequest.clips[1].effects.layer.mediaId).toBe(assets[9].id);
+  expect(exportRequest.clips[1].transition.type).toBe("fade");
   expect(
     exportRequest.clips.every(
       (c: any) => c.recipe.watermark && c.recipe.captions.length === 1,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("navigation", { name: "Editor modes" })
+    .getByRole("button", { name: "Create with AI", exact: true })
+    .click();
+  await director
+    .getByRole("combobox", { name: "Cinematic preset", exact: true })
+    .selectOption("art-of-building");
+  await director
+    .getByRole("button", { name: "Generate rule-based editing plan" })
+    .click();
+  await expect(
+    director.getByText(
+      /Original logo, centered fade-in ending; full image preserved/,
+    ),
+  ).toBeVisible();
+  // Confirm replacing only this mocked, unsaved timeline; keep the application guard.
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("Replace the current timeline");
+    await dialog.accept();
+  });
+  await director
+    .getByRole("button", { name: "Use plan as editable timeline" })
+    .click();
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Colour preset", exact: true }),
+  ).toHaveValue("art-of-building");
+  await page
+    .getByRole("button", { name: "Export combined MP4", exact: true })
+    .click();
+  await expect
+    .poll(() => exportRequest?.clips?.[0]?.effects?.grade)
+    .toBe("art-of-building");
+  expect(
+    exportRequest.clips.filter((c: any) => c.recipe.watermark),
+  ).toHaveLength(1);
+  expect(exportRequest.clips.at(-1).effects.logoEnding).toBe(true);
+  await page.screenshot({
+    path: ".tools/screenshots/art-of-building-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
   page.once("dialog", (d) => d.accept());
@@ -248,6 +421,7 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   exported = false;
   exportRequest = null;
   await page.setViewportSize({ width: 1720, height: 1080 });
+  await page.getByRole("button", { name: "Media", exact: true }).click();
   for (let i = 0; i < 2; i++)
     await page
       .getByRole("button", {
@@ -258,6 +432,7 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   await expect(
     page.getByRole("button", { name: "Export combined MP4", exact: true }),
   ).toBeEnabled();
+  await page.getByRole("button", { name: "Captions", exact: true }).click();
   await page
     .getByRole("button", { name: "Add timed caption", exact: true })
     .click();
@@ -282,7 +457,25 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   expect(exportRequest.clips[1].recipe.captions).toEqual([
     { start: 0, end: 2, text: "Synthetic owner caption" },
   ]);
-  await page.getByText("Private export jobs (1)", { exact: true }).click();
+  if (
+    !(await page
+      .getByRole("button", { name: "Download MP4", exact: true })
+      .isVisible())
+  )
+    await page.getByText("Private export jobs (1)", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Preview finished MP4", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      page
+        .locator(".finished-preview video")
+        .evaluate((v: HTMLVideoElement) => v.videoWidth),
+    )
+    .toBeGreaterThan(0);
+  await page
+    .getByRole("button", { name: "Close finished preview", exact: true })
+    .click();
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download MP4", exact: true }).click();
   expect((await downloaded).suggestedFilename()).toBe(
@@ -293,6 +486,7 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
     .getByRole("button", { name: "New production", exact: true })
     .click();
   const began = Date.now();
+  await page.getByRole("button", { name: "Media", exact: true }).click();
   for (let i = 0; i < 12; i++)
     await page
       .getByRole("button", {
@@ -335,9 +529,19 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   await expect(page.getByRole("button", { name: /Select clip/ })).toHaveCount(
     20,
   );
+  const dragFirst = page.getByRole("button", { name: /Select clip/ }).first();
+  const dragSecond = page.getByRole("button", { name: /Select clip/ }).nth(1);
+  await dragFirst.dragTo(dragSecond);
+  await expect(
+    page.getByRole("button", { name: /Select clip/ }).first(),
+  ).toHaveAccessibleName(/SYNTHETIC photo 02/);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Export combined MP4", exact: true }),
   ).toBeDisabled();
+  await page
+    .getByText("Project settings & saved work", { exact: true })
+    .click();
   await page
     .getByRole("textbox", { name: "Production title", exact: true })
     .fill("SYNTHETIC QA — mixed production");
@@ -357,11 +561,16 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
     .getByRole("button", { name: "Save production", exact: true })
     .click();
   await expect(
-    page
-      .getByRole("status")
-      .filter({ hasText: "Production saved to Supabase" }),
+    page.getByRole("status").filter({ hasText: "Project saved." }),
   ).toBeVisible();
   expect(saved.clips).toHaveLength(21);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
   await page.screenshot({
     path: ".tools/screenshots/premium-video-editor.png",
     fullPage: true,
@@ -372,13 +581,28 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
   await page.screenshot({
     path: ".tools/screenshots/premium-editor-mobile.png",
     fullPage: true,
   });
   await page.reload();
   await waitForOwnerWorkspace(page);
-  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
+  await openWorkspaceSection(page, "Media Studio");
+  if (
+    !(await page
+      .getByRole("combobox", { name: "Saved production", exact: true })
+      .isVisible())
+  )
+    await page
+      .getByText("Project settings & saved work", { exact: true })
+      .click();
   await page
     .getByRole("combobox", { name: "Saved production", exact: true })
     .selectOption(saved.id);
@@ -413,9 +637,7 @@ test("premium mixed-media timeline arranges twenty originals, saves/reopens and 
   ).toHaveAttribute("multiple", "");
   await page.getByRole("button", { name: "Close import", exact: true }).click();
   await page.setViewportSize({ width: 1720, height: 1080 });
-  await page
-    .getByRole("button", { name: "Media Library", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Media Library");
   await page.screenshot({
     path: ".tools/screenshots/premium-media-library.png",
     fullPage: true,

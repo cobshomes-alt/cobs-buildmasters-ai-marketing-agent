@@ -1,6 +1,7 @@
 import { defaultRecipe } from "./studio-model.mjs";
 import { sequenceSnapshot } from "./sequence-model.mjs";
 import { validateTimeline, type TimelineDocument } from "./timeline";
+import { sequenceDuration } from "./cinematic-model.mjs";
 
 export type MediaFacts = {
   id: string;
@@ -28,6 +29,8 @@ export type EditBrief = {
   captions: boolean;
   branding: boolean;
   starts: Record<string, number>;
+  cinematicPreset?: "none" | "gentle" | "story" | "art-of-building";
+  feedback?: string;
 };
 export type EditingPlan = {
   mode: "rule-based";
@@ -40,7 +43,7 @@ export type EditingPlan = {
     end: number;
     duration: number;
     caption: string;
-    transition: "cut";
+    transition: "cut" | "fade";
   }[];
   totalDuration: number;
   preset: string;
@@ -52,6 +55,14 @@ export type EditingPlan = {
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export function instructionHints(instructions: string): Partial<EditBrief> {
   const hints: Partial<EditBrief> = {};
+  if (
+    /art of building|warm cinematic|cinematic construction/i.test(instructions)
+  )
+    hints.cinematicPreset = "art-of-building";
+  else if (/\bcinematic\b|\bsoft crossfades?\b/i.test(instructions))
+    hints.cinematicPreset = "story";
+  else if (/\bgentle zoom\b/i.test(instructions))
+    hints.cinematicPreset = "gentle";
   const duration = instructions.match(
     /\b(\d+(?:\.\d+)?)\s*[- ]?\s*(?:seconds?|secs?)\b/i,
   );
@@ -97,12 +108,19 @@ export function validateBrief(value: unknown): asserts value is EditBrief {
           "captions",
           "branding",
           "starts",
+          "cinematicPreset",
+          "feedback",
         ].includes(k),
     ) ||
     !text(b.instructions, 2000) ||
     !b.instructions.trim() ||
     !text(b.companyInfo, 1000) ||
     !text(b.narration, 1000) ||
+    (b.feedback !== undefined && !text(b.feedback, 1000)) ||
+    (b.cinematicPreset !== undefined &&
+      !["none", "gentle", "story", "art-of-building"].includes(
+        b.cinematicPreset,
+      )) ||
     !Array.isArray(b.mediaIds) ||
     b.mediaIds.length < 1 ||
     b.mediaIds.length > 6 ||
@@ -137,11 +155,18 @@ export function validateBrief(value: unknown): asserts value is EditBrief {
     );
   if (
     /\b(crossfade|dissolve|keyframes?|picture.in.picture|animated|slow.motion|speed.ramp|pan|zoom|rotate|rotation|opacity|music|soundtrack|voice.over|transcribe|narrate|generate.audio)\b/i.test(
-      b.instructions,
+      (b.instructions + " " + (b.feedback || ""))
+        .replace(
+          b.cinematicPreset === "art-of-building"
+            ? /\b(?:professional music|background music|music|soundtrack)\b/gi
+            : /$^/,
+          "",
+        )
+        .replace(/\bgentle zoom\b|\bsoft crossfades?\b/gi, ""),
     )
   )
     throw new Error(
-      "That request includes unsupported effects or audio generation. This planner supports hard cuts, original audio, manual captions and the original logo only.",
+      "That request includes unsupported effects or audio generation. Use the supported preset controls; music must be supplied separately, and automatic speech generation and speed ramps are unavailable.",
     );
 }
 
@@ -196,8 +221,16 @@ export function generateEditingPlan(
       Math.min(30, f.duration === null ? 30 : f.duration - starts[i]) * 25,
     ),
   );
-  const target = Math.round(b.duration * 25),
+  const construction = b.cinematicPreset === "art-of-building";
+  const cinematic = !!b.cinematicPreset && b.cinematicPreset !== "none";
+  const target =
+      Math.round(b.duration * 25) +
+      (cinematic ? (media.length - 1) * (construction ? 6 : 10) : 0),
     frames = media.map(() => 25);
+  if (target > 1500)
+    throw new Error(
+      "Cinematic handles exceed the 60-second source budget. Reduce target duration.",
+    );
   if (
     capacity.some((c) => c < 25) ||
     capacity.reduce((n, c) => n + c, 0) < target
@@ -210,8 +243,13 @@ export function generateEditingPlan(
   while (remaining > 0)
     for (let i = 0; i < frames.length && remaining > 0; i++)
       if (frames[i] < capacity[i]) {
-        frames[i]++;
-        remaining--;
+        const add = Math.min(
+          remaining,
+          capacity[i] - frames[i],
+          construction ? [2, 3, 2, 4, 3, 4][i % 6] : 1,
+        );
+        frames[i] += add;
+        remaining -= add;
       }
   const timeline: TimelineDocument = {
     version: 1,
@@ -245,11 +283,59 @@ export function generateEditingPlan(
         start: starts[i],
         duration,
         fit: b.style === "energetic" ? "cover" : "contain",
-        watermark: b.branding,
-        captions: b.captions
-          ? [{ start: 0, end: duration, text: caption }]
-          : [],
+        watermark: b.branding && (!construction || i === media.length - 1),
+        captions:
+          b.captions && (!construction || i === media.length - 1)
+            ? [{ start: 0, end: duration, text: caption }]
+            : [],
+        text: construction
+          ? i === 0
+            ? "THE ART OF BUILDING"
+            : i === media.length - 1
+              ? "COBS BUILDMASTERS LTD"
+              : ""
+          : b.cinematicPreset === "story" && (i === 0 || i === media.length - 1)
+            ? caption
+            : "",
       },
+      ...(cinematic
+        ? {
+            effects: {
+              ...(construction
+                ? {
+                    grade: "art-of-building" as const,
+                    ...(i === media.length - 1 && b.branding
+                      ? { logoEnding: true }
+                      : {}),
+                  }
+                : {}),
+              motion: {
+                fromScale: 1,
+                toScale: construction ? 1.08 : 1.12,
+                fromX: 0.5,
+                toX: 0.5,
+                fromY: 0.5,
+                toY: 0.5,
+              },
+              animateText: true,
+              template: (b.cinematicPreset === "story" || construction
+                ? i === 0
+                  ? "intro"
+                  : i === media.length - 1
+                    ? "outro"
+                    : "lower-third"
+                : "plain") as "intro" | "outro" | "lower-third" | "plain",
+            },
+            ...(i < media.length - 1
+              ? {
+                  transition: {
+                    type: "fade" as const,
+                    duration: construction ? 0.24 : 0.4,
+                  },
+                }
+              : {}),
+          }
+        : {}),
     });
     return {
       mediaId: f.id,
@@ -257,8 +343,12 @@ export function generateEditingPlan(
       start: starts[i],
       end: starts[i] + duration,
       duration,
-      caption: b.captions ? caption : "",
-      transition: "cut" as const,
+      caption:
+        b.captions && (!construction || i === media.length - 1) ? caption : "",
+      transition:
+        cinematic && i < media.length - 1
+          ? ("fade" as const)
+          : ("cut" as const),
     };
   });
   validatePlanTimeline(timeline, media);
@@ -267,17 +357,21 @@ export function generateEditingPlan(
     brief: b,
     media,
     scenes,
-    totalDuration: frames.reduce((n, f) => n + f, 0) / 25,
+    totalDuration: Math.round(sequenceDuration(timeline.clips) * 25) / 25,
     preset: `H.264/AAC MP4 · 25 fps · ${b.aspect}`,
-    branding: b.branding
-      ? "Original logo · bottom right · 120×120 · 20px inset"
-      : "Off",
+    branding:
+      construction && b.branding
+        ? "Original logo, centered fade-in ending; full image preserved"
+        : b.branding
+          ? "Original logo · bottom right · 120×120 · 20px inset"
+          : "Off",
     audio:
-      "Original clip audio at volume 1; silent sources remain silent. No added narration or music.",
+      "Original clip audio at volume 1; silent sources remain silent. Add your licensed music or recorded narration in the timeline; no music or voice is generated or attached automatically.",
     limitations: [
+      "No automatic beat detection or audio-driven cuts. Pacing follows deterministic frame allocation, not the music waveform.",
       "No visual scene understanding: priority order and measured metadata determine selection, not image contents.",
       "Instructions are a production brief; explicit controls determine the edit. Company information and preferred narration are review notes, not synthesized speech or automatic factual captions.",
-      "One shared aspect preset; render separate owner-reviewed versions for different platform ratios.",
+      "One shared aspect preset; render separate owner-reviewed versions for different platform ratios. Cinematic requests use bounded preset motion/transitions, not semantic shot understanding.",
       "Review captions, framing and source trim points before rendering. This plan is unsaved and does not grant publication approval.",
     ],
     timeline,
@@ -296,7 +390,8 @@ export function validatePlanTimeline(
       !f ||
       c.kind !== (f.mime.startsWith("video/") ? "video" : "image") ||
       (c.kind === "video" &&
-        c.recipe.start + c.recipe.duration > f.duration! + 0.001)
+        c.recipe.start + c.recipe.duration * (c.effects?.speed || 1) >
+          f.duration! + 0.001)
     )
       throw new Error(
         "Timeline references unavailable media or exceeds an original's duration.",

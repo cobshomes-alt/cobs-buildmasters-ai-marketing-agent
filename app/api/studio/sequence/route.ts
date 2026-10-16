@@ -24,6 +24,11 @@ import {
 import { createWriteStream } from "node:fs";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import {
+  visualSources,
+  sequenceDuration,
+} from "../../../../lib/cinematic-model.mjs";
+import { resolveAudio, captureAudio } from "../../../../lib/local-audio";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
@@ -65,14 +70,14 @@ export async function POST(request: Request) {
     if (invalid) throw new HttpError(400, invalid);
     let recipe;
     try {
-      recipe = sequenceSnapshot(doc.clips);
+      recipe = sequenceSnapshot(doc.clips, doc.audioTracks);
     } catch (e) {
       throw new HttpError(
         400,
         e instanceof Error ? e.message : "Invalid timeline.",
       );
     }
-    const ids = [...new Set(recipe.clips.map((c) => c.mediaId))];
+    const ids = visualSources(recipe.clips);
     db = database();
     const worker = db
       .prepare(
@@ -85,8 +90,7 @@ export async function POST(request: Request) {
       version: number;
     };
     if (!(
-      worker?.version >=
-        (recipe.clips.some((c) => c.recipe.captions?.length) ? 3 : 2) &&
+      worker?.version >= recipe.version &&
       typeof worker.token === "string" &&
       worker.token === worker.capability_token &&
       worker.heartbeat > Date.now() - 15000
@@ -106,7 +110,22 @@ export async function POST(request: Request) {
       if (!asset) throw new HttpError(400, "An original is unavailable.");
       return asset;
     });
-    let size = 0;
+    let audioOriginals;
+    try {
+      audioOriginals = resolveAudio(db, user.id, recipe.audioTracks);
+    } catch (e) {
+      throw new HttpError(
+        400,
+        e instanceof Error ? e.message : "Audio unavailable.",
+      );
+    }
+    if (
+      recipe.audioTracks?.some(
+        (t) => t.offset >= sequenceDuration(recipe.clips),
+      )
+    )
+      throw new HttpError(400, "Audio begins after the production ends.");
+    let size = audioOriginals.reduce((n, t) => n + t.bytes, 0);
     for (const asset of assets) {
       if (
         !asset ||
@@ -128,6 +147,12 @@ export async function POST(request: Request) {
           (c) =>
             c.mediaId === asset.id &&
             c.kind !==
+              (asset.mime_type.startsWith("image/") ? "image" : "video"),
+        ) ||
+        recipe.clips.some(
+          (c) =>
+            c.effects?.layer?.mediaId === asset.id &&
+            c.effects?.layer?.kind !==
               (asset.mime_type.startsWith("image/") ? "image" : "video"),
         )
       )
@@ -173,6 +198,7 @@ export async function POST(request: Request) {
       return Response.json({ job: publicJob(db, row), duplicate: true });
     const deadline = Date.now() + 90000;
     try {
+      captureAudio(audioOriginals, row.id);
       for (const [index, asset] of assets.entries()) {
         if (findJob(db, user.id, row.id)?.state !== "receiving") break;
         const remaining = deadline - Date.now();

@@ -8,9 +8,15 @@ import MediaStudio from "./components/media-studio";
 import SocialPostPreview from "./components/social-post-preview";
 import { isEditingRecord } from "../lib/studio-model.mjs";
 import { isPlanningRecord } from "../lib/creative-plan";
-import BrandLogo from "./components/brand-logo";
+import {
+  OwnerLogin,
+  ProductNavigation,
+  SECTION_LABELS,
+  type StudioEntry,
+} from "./components/product-shell";
 import Overview from "./components/overview";
 import SystemStatus from "./components/system-status";
+import MarketingOperations from "./components/marketing-operations";
 import PostAttachment from "./components/post-attachment";
 import MediaLibrary, { type Asset } from "./components/media-library";
 
@@ -29,18 +35,6 @@ type Post = {
   approved_at?: string | null;
 };
 type Campaign = { id: string; name: string; created_at?: string };
-const modules = [
-  "Overview",
-  "Campaign Planner",
-  "Content Calendar",
-  "Creative Studio",
-  "Media Library",
-  "Media Studio",
-  "Approvals",
-  "Scheduler",
-  "Leads",
-  "Settings",
-];
 const card = {
   background: "var(--surface)",
   borderRadius: 10,
@@ -77,6 +71,11 @@ export default function Page() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [active, setActive] = useState("Overview");
+  const [studioEntry, setStudioEntry] = useState<StudioEntry>("choose");
+  const navigate = (section: string, entry?: StudioEntry) => {
+    if (section === "Media Studio") setStudioEntry(entry || "choose");
+    setActive(section);
+  };
   const [notice, setNotice] = useState("Sign in to open the secure workspace.");
   const [posts, setPosts] = useState<Post[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -414,112 +413,21 @@ export default function Page() {
 
   if (!session || role !== "owner")
     return (
-      <main
-        className="auth-shell"
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#f4f6f8",
-          fontFamily: "Arial, sans-serif",
-          color: "#17345c",
-          padding: 20,
-        }}
-      >
-        <section style={{ ...card, width: "min(430px, 100%)" }}>
-          <BrandLogo placement="auth" />
-          <h1>
-            {authMode === "signIn"
-              ? "Sign in to your workspace"
-              : "Create the owner account"}
-          </h1>
-          <p>
-            {authMode === "signIn"
-              ? "Use the authorised COBS owner email to open the private workspace."
-              : "Use cobshomes@gmail.com. You will be asked to confirm the email before signing in."}
-          </p>
-          <form onSubmit={submitAuth}>
-            <label>
-              Email
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={input}
-              />
-            </label>
-            <label>
-              Password
-              <input
-                required
-                minLength={6}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={input}
-              />
-            </label>
-            <button type="submit" style={button}>
-              {authMode === "signIn" ? "Sign in" : "Create account"}
-            </button>
-          </form>
-          {authMode === "signIn" && (
-            <button
-              type="button"
-              onClick={() => void resendConfirmation()}
-              style={{
-                border: 0,
-                background: "none",
-                color: "#17345c",
-                marginTop: 12,
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Resend confirmation email
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() =>
-              setAuthMode(authMode === "signIn" ? "signUp" : "signIn")
-            }
-            style={{
-              border: 0,
-              background: "none",
-              color: "#17345c",
-              marginTop: 16,
-              cursor: "pointer",
-              textDecoration: "underline",
-            }}
-          >
-            {authMode === "signIn"
-              ? "First time here? Create your owner account"
-              : "Already have an account? Sign in"}
-          </button>
-          {session && (
-            <div className="auth-actions">
-              <button type="button" onClick={() => void loadWorkspace()}>
-                Retry workspace
-              </button>
-              <button
-                type="button"
-                onClick={() => void supabase?.auth.signOut()}
-              >
-                Sign out
-              </button>
-            </div>
-          )}
-          <p
-            role="status"
-            aria-live="polite"
-            style={{ color: "#536273", marginTop: 18 }}
-          >
-            ● {notice}
-          </p>
-        </section>
-      </main>
+      <OwnerLogin
+        mode={authMode}
+        email={email}
+        password={password}
+        notice={notice}
+        connected={!!session}
+        available={!!supabase}
+        onEmail={setEmail}
+        onPassword={setPassword}
+        onSubmit={submitAuth}
+        onMode={() => setAuthMode(authMode === "signIn" ? "signUp" : "signIn")}
+        onResend={() => void resendConfirmation()}
+        onRetry={() => void loadWorkspace()}
+        onSignOut={() => void supabase?.auth.signOut()}
+      />
     );
 
   const contentPosts = posts.filter(
@@ -530,9 +438,23 @@ export default function Page() {
     approved = contentPosts.filter((p) => p.status === "Approved"),
     scheduled = contentPosts.filter((p) => p.status === "Scheduled");
   const panel = () => {
+    if (
+      (active === "Publishing Centre" || active === "Marketing Operations") &&
+      session
+    )
+      return (
+        <MarketingOperations
+          token={session.access_token}
+          mode={active === "Publishing Centre" ? "publishing" : "operations"}
+          assets={assets}
+        />
+      );
     if (active === "Media Studio" && supabase)
       return (
         <MediaStudio
+          entry={studioEntry}
+          onEntryChange={setStudioEntry}
+          onNavigate={navigate}
           onAssets={(incoming) =>
             setAssets((current) => [
               ...incoming,
@@ -575,7 +497,7 @@ export default function Page() {
             campaigns: campaigns.length,
           }}
           recent={contentPosts}
-          navigate={setActive}
+          navigate={navigate}
         />
       );
     if (active === "Creative Studio" && supabase && session)
@@ -586,7 +508,7 @@ export default function Page() {
           campaigns={campaigns}
           posts={posts}
           assets={assets}
-          navigate={setActive}
+          navigate={navigate}
           onSaved={(post) =>
             setPosts((current) => [
               post,
@@ -898,122 +820,44 @@ export default function Page() {
   };
   return (
     <main
-      className="dashboard"
-      style={{
-        fontFamily: "Arial, sans-serif",
-        minHeight: "100vh",
-        background: "#f4f6f8",
-        color: "#17345c",
-      }}
+      className={
+        "product-shell" +
+        (active === "Media Studio" ? " product-shell--editor" : "")
+      }
     >
-      <aside
-        className="sidebar"
-        style={{
-          position: "fixed",
-          inset: "0 auto 0 0",
-          width: 250,
-          background: "#102f5b",
-          padding: 28,
-          color: "white",
-        }}
-      >
-        <BrandLogo placement="sidebar" />
-        <nav aria-label="Workspace sections" style={{ marginTop: 34 }}>
-          {modules.map((item) => (
-            <button
-              key={item}
-              aria-current={active === item ? "page" : undefined}
-              type="button"
-              onClick={() => {
-                setActive(item);
-                if (item === "Creative Studio") {
-                  setEditing(null);
-                  setMediaId("");
-                  setPostCampaign("");
-                }
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                border: 0,
-                margin: "4px 0",
-                padding: "10px 12px",
-                borderRadius: 6,
-                cursor: "pointer",
-                color: "#e0e9f5",
-                background: active === item ? "#295182" : "transparent",
-                fontSize: 15,
-              }}
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
-      </aside>
-      <section
-        className="workspace"
-        style={{ marginLeft: 250, padding: 44, maxWidth: 1300 }}
-      >
-        <header
-          className="workspace-header"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-          }}
-        >
+      <a className="skip-link" href="#workspace-content">
+        Skip to workspace
+      </a>
+      <ProductNavigation
+        active={active}
+        entry={studioEntry}
+        navigate={navigate}
+      />
+      <section id="workspace-content" className="product-workarea">
+        <header className="product-header">
           <div>
-            <p
-              style={{
-                color: "#b18b4a",
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: 1.4,
-              }}
-            >
-              OWNER WORKSPACE
-            </p>
-            <h1 style={{ fontSize: 34, margin: "5px 0" }}>{active}</h1>
-            <p className="muted">
-              Build your brand with the same care as your projects.
-            </p>
+            <p className="eyebrow">COBS BUILDMASTERS LTD</p>
+            <h1>
+              {active === "Overview"
+                ? "What would you like to create?"
+                : SECTION_LABELS[active] || active}
+            </h1>
           </div>
-          <div>
-            <span style={{ fontSize: 13, marginRight: 12 }}>
-              {session.user.email}
-            </span>
-            <button
-              type="button"
-              onClick={() => void loadWorkspace()}
-              style={button}
-            >
-              Refresh
-            </button>{" "}
-            <button
-              type="button"
-              onClick={() => void supabase?.auth.signOut()}
-              style={button}
-            >
+          <details className="owner-menu">
+            <summary>My account</summary>
+            <p>{session.user.email}</p>
+            <button onClick={() => void loadWorkspace()}>
+              Refresh workspace
+            </button>
+            <button onClick={() => void supabase?.auth.signOut()}>
               Sign out
             </button>
-          </div>
+          </details>
         </header>
         {notice && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              background: "white",
-              borderLeft: "4px solid #19865c",
-              padding: 16,
-              borderRadius: 5,
-              margin: "25px 0",
-            }}
-          >
-            ● {notice}
-          </div>
+          <p className="workspace-notice" role="status" aria-live="polite">
+            {notice}
+          </p>
         )}
         {panel()}
       </section>

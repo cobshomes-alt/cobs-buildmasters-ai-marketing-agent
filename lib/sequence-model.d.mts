@@ -1,7 +1,15 @@
 import type { Recipe } from "./studio-model.mjs";
+import type { Effects, Transition, AudioTrack } from "./cinematic-model.mjs";
 export type SequenceRecipe = {
-  version: 2 | 3;
-  clips: { mediaId: string; kind: "image" | "video"; recipe: Recipe }[];
+  version: 2 | 3 | 4 | 5;
+  audioTracks?: AudioTrack[];
+  clips: {
+    mediaId: string;
+    kind: "image" | "video";
+    recipe: Recipe;
+    effects?: Effects;
+    transition?: Transition;
+  }[];
 };
 export const SEQUENCE_LIMITS: Readonly<{
   clips: number;
@@ -12,4 +20,5 @@ export const SEQUENCE_LIMITS: Readonly<{
 export function validateSequence(value: unknown): string | null;
 export function sequenceSnapshot(
   clips: SequenceRecipe["clips"],
+  audioTracks?: AudioTrack[],
 ): SequenceRecipe;

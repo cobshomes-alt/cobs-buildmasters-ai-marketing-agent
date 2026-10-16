@@ -4,12 +4,22 @@ import {
   sliceCaptions,
   type Recipe,
 } from "./studio-model.mjs";
+import {
+  validateEffects,
+  validateTracks,
+  sequenceDuration,
+  type Effects,
+  type Transition,
+  type AudioTrack,
+} from "./cinematic-model.mjs";
 export type TimelineClip = {
   id: string;
   mediaId: string;
   kind: "image" | "video";
   label: string;
   recipe: Recipe;
+  effects?: Effects;
+  transition?: Transition;
 };
 export type TimelineDocument = {
   version: 1;
@@ -18,6 +28,7 @@ export type TimelineDocument = {
   campaignId: string | null;
   aspect: Recipe["aspect"];
   clips: TimelineClip[];
+  audioTracks?: AudioTrack[];
 };
 export type SavedTimeline = TimelineDocument & {
   revision: number;
@@ -48,7 +59,7 @@ export function newClip(media: {
   };
 }
 export function timelineDuration(doc: TimelineDocument) {
-  return doc.clips.reduce((sum, c) => sum + c.recipe.duration, 0);
+  return sequenceDuration(doc.clips);
 }
 export function validateTimeline(value: unknown): string | null {
   const d = value as TimelineDocument;
@@ -76,11 +87,13 @@ export function validateTimeline(value: unknown): string | null {
       typeof c.label !== "string" ||
       c.label.length > 200 ||
       validateRecipe(c.recipe) ||
-      c.recipe.aspect !== d.aspect
+      c.recipe.aspect !== d.aspect ||
+      validateEffects(c, c === d.clips.at(-1))
     )
       return "A timeline clip is invalid.";
     ids.add(c.id);
   }
+  if (validateTracks(d.audioTracks)) return "Invalid audio tracks.";
   if (timelineDuration(d) > 300)
     return "This milestone supports timelines up to five minutes.";
   return null;
@@ -95,7 +108,16 @@ export function moveClip(
     to = from + delta;
   if (from < 0 || to < 0 || to >= clips.length) return d;
   [clips[from], clips[to]] = [clips[to], clips[from]];
-  return { ...d, clips };
+  return {
+    ...d,
+    clips: clips.map((c, i) => ({
+      ...c,
+      ...(i === clips.length - 1 ? { transition: undefined } : {}),
+      ...(c.effects?.logoEnding && i !== clips.length - 1
+        ? { effects: { ...c.effects, logoEnding: undefined } }
+        : {}),
+    })),
+  };
 }
 export function splitClip(
   d: TimelineDocument,
@@ -113,6 +135,7 @@ export function splitClip(
     return d;
   const first = {
       ...clip,
+      transition: undefined,
       recipe: {
         ...clip.recipe,
         duration: offset,
@@ -127,13 +150,40 @@ export function splitClip(
         ...clip.recipe,
         start:
           clip.kind === "video"
-            ? clip.recipe.start + offset
+            ? clip.recipe.start + offset * (clip.effects?.speed || 1)
             : clip.recipe.start,
         duration: clip.recipe.duration - offset,
         captions: sliceCaptions(clip.recipe, offset, clip.recipe.duration),
         fade: Math.min(clip.recipe.fade, (clip.recipe.duration - offset) / 2),
       },
     };
+  if (clip.effects?.motion) {
+    const m = clip.effects.motion,
+      f = offset / clip.recipe.duration,
+      scale = m.fromScale + (m.toScale - m.fromScale) * f,
+      x = m.fromX + (m.toX - m.fromX) * f,
+      y = m.fromY + (m.toY - m.fromY) * f;
+    first.effects = {
+      ...clip.effects,
+      motion: { ...m, toScale: scale, toX: x, toY: y },
+    };
+    second.effects = {
+      ...clip.effects,
+      animateText: false,
+      motion: { ...m, fromScale: scale, fromX: x, fromY: y },
+    };
+  }
+  if (first.effects?.logoEnding)
+    first.effects = { ...first.effects, logoEnding: undefined };
+  if (clip.effects?.layer?.kind === "video") {
+    second.effects = {
+      ...second.effects,
+      layer: {
+        ...clip.effects.layer,
+        start: clip.effects.layer.start + offset,
+      },
+    };
+  }
   return {
     ...d,
     clips: [
@@ -148,8 +198,11 @@ export function clipAt(d: TimelineDocument, time: number) {
   let start = 0;
   for (const clip of d.clips) {
     const end = start + clip.recipe.duration;
-    if (time < end) return { clip, start, offset: Math.max(0, time - start) };
-    start = end;
+    const overlap =
+      clip.transition?.type !== "cut" ? clip.transition?.duration || 0 : 0;
+    if (time < end - overlap || clip === d.clips.at(-1))
+      return { clip, start, offset: Math.max(0, time - start) };
+    start = end - overlap;
   }
   const clip = d.clips.at(-1);
   return clip
@@ -159,4 +212,17 @@ export function clipAt(d: TimelineDocument, time: number) {
         offset: clip.recipe.duration,
       }
     : null;
+}
+export function reorderClip(
+  d: TimelineDocument,
+  fromId: string,
+  toId: string,
+): TimelineDocument {
+  const from = d.clips.findIndex((c) => c.id === fromId),
+    to = d.clips.findIndex((c) => c.id === toId);
+  if (from < 0 || to < 0 || from === to) return d;
+  let next = d;
+  const delta = from < to ? 1 : -1;
+  for (let i = from; i !== to; i += delta) next = moveClip(next, fromId, delta);
+  return next;
 }

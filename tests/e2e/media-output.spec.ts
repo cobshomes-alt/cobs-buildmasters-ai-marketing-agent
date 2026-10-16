@@ -5,6 +5,45 @@ import { readFileSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+test("real cinematic MP4 plays through all transitions and reaches its end in Chrome", async ({
+  page,
+}) => {
+  test.setTimeout(180000);
+  await promisify(execFile)(
+    process.execPath,
+    ["node_modules/vitest/vitest.mjs", "run", "tests/cinematic-output.test.ts"],
+    { windowsHide: true, timeout: 150000, env: { ...process.env } },
+  );
+  await page.route("**/cinematic-synthetic.mp4", (route) =>
+    route.fulfill({
+      contentType: "video/mp4",
+      body: readFileSync(
+        resolve(
+          ".tools/delivery/media-studio/synthetic-cinematic-six-sources.mp4",
+        ),
+      ),
+    }),
+  );
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const v = document.createElement("video");
+    v.setAttribute("aria-label", "Actual cinematic export");
+    v.muted = true;
+    v.controls = true;
+    v.src = "/cinematic-synthetic.mp4";
+    document.body.append(v);
+    await v.play();
+  });
+  const v = page.getByLabel("Actual cinematic export");
+  await expect
+    .poll(() => v.evaluate((e) => (e as HTMLVideoElement).ended), {
+      timeout: 17000,
+    })
+    .toBe(true);
+  expect(await v.evaluate((e) => (e as HTMLVideoElement).error)).toBeNull();
+  expect(await v.evaluate((e) => (e as HTMLVideoElement).videoWidth)).toBe(720);
+});
+
 test("automatic director six-source edited branded export plays to the end in Chrome", async ({
   page,
 }) => {

@@ -53,6 +53,36 @@ test("plain-English instruction hints are explicit, deterministic and do not inv
   ).toEqual({ aspect: "16:9", captions: false, branding: false });
   expect(instructionHints("Show a happy customer")).toEqual({});
 });
+test("cinematic presets add supported motion/transitions while preserving requested final duration and owner feedback", () => {
+  const p = generateEditingPlan(
+    {
+      ...brief(),
+      duration: 12,
+      cinematicPreset: "story",
+      feedback: "Keep the verified originals",
+    },
+    media,
+  );
+  expect(p.totalDuration).toBe(12);
+  expect(p.timeline.clips[0].effects?.template).toBe("intro");
+  expect(p.timeline.clips.at(-1)?.effects?.template).toBe("outro");
+  expect(
+    p.timeline.clips.slice(0, -1).every((c) => c.transition?.type === "fade"),
+  ).toBe(true);
+  expect(
+    p.timeline.clips.every((c) => c.effects?.motion?.toScale === 1.12),
+  ).toBe(true);
+  expect(() => validatePlanTimeline(p.timeline, media)).not.toThrow();
+  expect(
+    instructionHints("Use cinematic 12-second vertical framing"),
+  ).toMatchObject({ cinematicPreset: "story", duration: 12, aspect: "9:16" });
+  expect(() =>
+    generateEditingPlan(
+      { ...brief(), duration: 60, cinematicPreset: "story" },
+      media,
+    ),
+  ).toThrow(/handles/);
+});
 test("deterministic six-source planner uses only selected facts, whole frames, priority and editable captions", () => {
   const b = brief();
   b.priorityIds = [media[4].id];

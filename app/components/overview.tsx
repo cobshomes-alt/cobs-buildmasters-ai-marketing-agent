@@ -1,5 +1,6 @@
-import BrandLogo from "./brand-logo";
-
+﻿"use client";
+import { useEffect, useState } from "react";
+import type { StudioEntry } from "./product-shell";
 type Props = {
   counts: {
     drafts: number;
@@ -10,105 +11,140 @@ type Props = {
     campaigns: number;
   };
   recent: { id: string; title: string; status: string }[];
-  navigate: (section: string) => void;
+  navigate: (s: string, entry?: StudioEntry) => void;
 };
 export default function Overview({ counts, recent, navigate }: Props) {
+  const [guide, setGuide] = useState(false);
+  useEffect(() => {
+    try {
+      setGuide(localStorage.getItem("cobs-onboarding-dismissed") !== "yes");
+    } catch {
+      setGuide(true);
+    }
+  }, []);
   return (
-    <>
-      <section className="overview-hero">
-        <div>
-          <p className="eyebrow">COBS BUILDMASTERS LTD</p>
-          <h2>
-            Strong foundations.
-            <br />A stronger brand.
-          </h2>
-          <p>
-            Turn the work on your sites and factory floor into content that
-            builds trust. Plan, create and review in one private workspace.
-          </p>
-          <div className="actions">
-            <button onClick={() => navigate("Content Calendar")}>
-              Create a draft ↗
-            </button>
-            <button
-              className="hero-secondary"
-              onClick={() => navigate("Media Library")}
-            >
-              Explore your media
-            </button>
-          </div>
-        </div>
-        <div className="hero-mark" aria-hidden="true">
-          <BrandLogo placement="hero" />
-        </div>
-      </section>
-      <div className="stats-grid">
+    <div className="home-launcher">
+      <p className="home-intro">
+        One place for your ideas, your footage and your next great story.
+      </p>
+      <section
+        className="creation-actions"
+        aria-label="Create your next project"
+      >
         {[
-          ["Drafts", counts.drafts, "Content Calendar"],
-          ["Awaiting approval", counts.pending, "Approvals"],
-          ["Approved", counts.approved, "Approvals"],
-          ["Ready for manual publishing", counts.ready, "Scheduler"],
-        ].map(([label, value, section]) => (
+          {
+            name: "Create with AI",
+            description: "Describe your idea. Get an editable video plan.",
+            icon: "✦",
+            id: "Media Studio",
+            mode: "automatic",
+          },
+          {
+            name: "Edit Myself",
+            description: "Bring your footage. Shape every detail yourself.",
+            icon: "▣",
+            id: "Media Studio",
+            mode: "manual",
+          },
+          {
+            name: "Plan Content",
+            description: "Shot lists, scripts and a clear plan for filming.",
+            icon: "☷",
+            id: "Creative Studio",
+          },
+          {
+            name: "My Posts",
+            description: "Pick up a draft or prepare content for review.",
+            icon: "▤",
+            id: "Content Calendar",
+          },
+        ].map((a, i) => (
           <button
-            className="stat-card"
-            key={String(label)}
-            onClick={() => navigate(String(section))}
+            className={`creation-action action-${i}`}
+            key={a.name}
+            onClick={() => navigate(a.id, a.mode as StudioEntry | undefined)}
           >
-            <span>{label}</span>
-            <strong>{value}</strong>
-            <small>View content ↗</small>
+            <span className="creation-icon" aria-hidden="true">
+              {a.icon}
+            </span>
+            <div>
+              <h2>{a.name}</h2>
+              <p>{a.description}</p>
+            </div>
+            <span className="action-arrow" aria-hidden="true">
+              ↗
+            </span>
           </button>
         ))}
-      </div>
-      <div className="overview-grid">
-        <article className="surface">
-          <div className="section-heading">
-            <h2>Recent content</h2>
-            <button onClick={() => navigate("Content Calendar")}>
-              View all
+      </section>
+      {guide && (
+        <section className="first-use-guide" aria-label="Getting started">
+          <div>
+            <span className="eyebrow">
+              YOUR FIRST VIDEO, THREE SIMPLE STEPS
+            </span>
+            <p>
+              <strong>1. Add your originals.</strong>{" "}
+              <span>2. Create or edit a plan.</span>{" "}
+              <span>3. Preview, then review.</span>
+            </p>
+          </div>
+          <div className="actions">
+            <button onClick={() => navigate("Media Library")}>
+              Upload your first media
+            </button>
+            <button
+              aria-label="Dismiss getting started guide"
+              onClick={() => {
+                setGuide(false);
+                try {
+                  localStorage.setItem("cobs-onboarding-dismissed", "yes");
+                } catch {}
+              }}
+            >
+              ×
             </button>
           </div>
-          {recent.length ? (
-            recent.slice(0, 5).map((post) => (
-              <div className="recent-row" key={post.id}>
-                <strong>{post.title}</strong>
-                <span className="badge">{post.status}</span>
-              </div>
-            ))
-          ) : (
-            <div className="empty-state">
-              <h3>Your next story starts here</h3>
-              <p>
-                Create a draft or upload original project media to get started.
-              </p>
-            </div>
-          )}
-        </article>
-        <article className="surface">
-          <p className="eyebrow">YOUR WORKSPACE</p>
-          <h2>Built for your workflow</h2>
-          <p>
-            <strong>{counts.media}</strong> original media assets
-            <br />
-            <strong>{counts.campaigns}</strong> campaigns
-          </p>
-          <div className="workflow-steps">
-            <p>
-              <span>01</span> Upload original project media
-            </p>
-            <p>
-              <span>02</span> Write and organise your drafts
-            </p>
-            <p>
-              <span>03</span> Review and approve as owner
-            </p>
+        </section>
+      )}
+      <section className="recent-work">
+        <header>
+          <div>
+            <p className="eyebrow">PICK UP WHERE YOU LEFT OFF</p>
+            <h2>Your recent work</h2>
           </div>
-          <p className="muted">
-            Publishing remains manual. Every content change requires a fresh
-            approval.
-          </p>
-        </article>
-      </div>
-    </>
+          <button onClick={() => navigate("Content Calendar")}>
+            View all posts ↗
+          </button>
+        </header>
+        {recent.length ? (
+          <div className="recent-work-list">
+            {recent.slice(0, 5).map((p) => (
+              <button key={p.id} onClick={() => navigate("Content Calendar")}>
+                <span className="recent-work-icon" aria-hidden="true">
+                  ▤
+                </span>
+                <strong>{p.title}</strong>
+                <span className="badge">{p.status}</span>
+                <span aria-hidden="true">↗</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="home-empty">
+            <span aria-hidden="true">✧</span>
+            <h3>Your next story starts here</h3>
+            <p>No posts yet. Choose a creation option above to begin.</p>
+          </div>
+        )}
+        <footer>
+          <span>{counts.campaigns} projects</span>
+          <span>{counts.media} original media</span>
+          <button onClick={() => navigate("Approvals")}>
+            {counts.pending} awaiting owner review
+          </button>
+        </footer>
+      </section>
+    </div>
   );
 }

@@ -138,6 +138,11 @@ test.each([2, 3])(
   },
 );
 test("an old worker is rejected before metadata lookup or reservation", async () => {
+  state.workerVersion = 3;
+  doc.clips[0].effects = { animateText: true };
+  expect((await POST(request())).status).toBe(503);
+  expect(state.reserved).toBe(0);
+  delete doc.clips[0].effects;
   state.workerVersion = 1;
   expect((await POST(request())).status).toBe(503);
   expect(state.client.from).not.toHaveBeenCalled();
@@ -254,3 +259,18 @@ test("oversized requests and invalid timelines are rejected before reservation",
   expect((await POST(request())).status).toBe(400);
   expect(state.reserved).toBe(0);
 });
+
+test.each([4, 5])(
+  "construction grade requires worker v5 before any private capture (simulated version %s)",
+  async (version) => {
+    state.workerVersion = version;
+    doc.clips[0].effects = { grade: "art-of-building", logoEnding: true };
+    const response = await POST(request());
+    expect(response.status).toBe(version === 5 ? 202 : 503);
+    if (version === 4) {
+      expect(state.client.from).not.toHaveBeenCalled();
+      expect(state.reserved).toBe(0);
+      expect(fetch).not.toHaveBeenCalled();
+    } else expect(state.recipe.version).toBe(5);
+  },
+);

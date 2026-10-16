@@ -18,12 +18,16 @@ export default function SocialPostPreview({
   body,
   title,
   asset,
+  initialPlatform,
 }: {
   body: string;
   title: string;
   asset?: Asset;
+  initialPlatform?: string;
 }) {
-  const [platform, setPlatform] = useState<string>("Instagram Feed");
+  const [platform, setPlatform] = useState<string>(
+    initialPlatform || "Instagram Feed",
+  );
   const [open, setOpen] = useState(false);
   const vertical = /Reels|Stories|TikTok|Shorts|Snapchat/.test(platform);
   const ratio = vertical

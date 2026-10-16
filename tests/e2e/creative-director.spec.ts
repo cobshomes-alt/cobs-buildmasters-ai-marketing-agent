@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { waitForOwnerWorkspace } from "./workspace";
+import { waitForOwnerWorkspace, openWorkspaceSection } from "./workspace";
 import { decodePlan } from "../../lib/creative-plan";
 import { writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
@@ -118,9 +118,7 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
   });
   await page.goto("/");
   await waitForOwnerWorkspace(page);
-  await page
-    .getByRole("button", { name: "Creative Studio", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Creative Studio");
   await page
     .getByRole("button", { name: "Production brief", exact: true })
     .click();
@@ -180,15 +178,11 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
   expect(decodePlan(posts[0].body)?.checked).toEqual([0]);
   await page.reload();
   await waitForOwnerWorkspace(page);
-  await page
-    .getByRole("button", { name: "Content Calendar", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Content Calendar");
   await expect(
     page.getByText("Production plan:", { exact: false }),
   ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Creative Studio", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Creative Studio");
   await page.getByRole("button", { name: /^Production plan:/ }).click();
   await expect(
     page.getByRole("checkbox", { name: /Location and activity introduction/ }),
@@ -307,9 +301,7 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
   expect(posts[1].status).toBe("Draft");
   expect(posts[1].media_id).toBe("media");
   expect(decodePlan(posts[0].body)?.outputPostId).toBe(posts[1].id);
-  await page
-    .getByRole("button", { name: "Content Calendar", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Content Calendar");
   await expect(
     page.getByText("I want to film my concrete block factory", { exact: true }),
   ).toBeVisible();
@@ -329,11 +321,8 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
       "Leads",
       "Settings",
     ]) {
-      await page
-        .getByRole("navigation", { name: "Workspace sections" })
-        .getByRole("button", { name: section, exact: true })
-        .click();
-      await expect(page.locator(".workspace")).toBeVisible();
+      await openWorkspaceSection(page, section);
+      await expect(page.locator(".product-workarea")).toBeVisible();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
@@ -411,7 +400,7 @@ test("creative director plans, reloads, hands off to Draft and fits mobile (mock
               label: getComputedStyle(el.querySelector("label")!).color,
               helper: getComputedStyle(el.querySelector("p")!).color,
             }));
-            expect(styles.background).toBe("rgb(25, 43, 64)");
+            expect(styles.background).toBe("rgb(27, 42, 58)");
             await expect(page.locator("#creative-ai-help")).toHaveText(
               "AI generation unavailable. Use a sample plan.",
             );

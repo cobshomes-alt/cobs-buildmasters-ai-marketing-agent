@@ -38,6 +38,7 @@ export default function AutomaticEditingDirector({
     starts: {},
   });
   const [plan, setPlan] = useState<EditingPlan | null>(null),
+    [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   function change(patch: Partial<EditBrief>) {
@@ -45,7 +46,7 @@ export default function AutomaticEditingDirector({
     setPlan(null);
     setError("");
   }
-  async function generate() {
+  async function generate(nextBrief: EditBrief = brief) {
     if (busy) return;
     setBusy(true);
     onBusy(true);
@@ -59,7 +60,7 @@ export default function AutomaticEditingDirector({
           "Content-Type": "application/json",
           Authorization: `Bearer ${data.session?.access_token || ""}`,
         },
-        body: JSON.stringify(brief),
+        body: JSON.stringify(nextBrief),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Planning failed.");
@@ -107,6 +108,27 @@ export default function AutomaticEditingDirector({
           contents are not interpreted.
         </p>
         <div className="director-options">
+          <label>
+            Cinematic preset
+            <select
+              value={brief.cinematicPreset || "none"}
+              onChange={(e) =>
+                change({
+                  cinematicPreset: e.target
+                    .value as EditBrief["cinematicPreset"],
+                })
+              }
+            >
+              <option value="art-of-building">
+                COBS — The Art of Building
+              </option>
+              <option value="none">Clean hard cuts</option>
+              <option value="gentle">Gentle zoom &amp; soft crossfades</option>
+              <option value="story">
+                Branded intro, cinematic movement &amp; closing title
+              </option>
+            </select>
+          </label>
           <label>
             Target duration (seconds)
             <input
@@ -292,9 +314,9 @@ export default function AutomaticEditingDirector({
           </label>
         </details>
         <p className="muted">
-          Hard cuts and original clip audio only. No added music, voice-over,
-          zoom, keyframes or animated effects. Unknown video content is never
-          inferred from filenames.
+          Clean cuts or bounded cinematic presets. Separate licensed music or
+          recorded narration can be added in the timeline. No audio generation
+          or scene-content inference is performed.
         </p>
         <button
           className="gold-button"
@@ -308,6 +330,34 @@ export default function AutomaticEditingDirector({
       {plan && (
         <div className="director-review" aria-label="Editing plan review">
           <h4>Review your proposed cut · {plan.totalDuration}s</h4>
+          <label>
+            Owner feedback for regeneration
+            <textarea
+              maxLength={1000}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+            />
+          </label>
+          <button
+            disabled={busy || disabled || !feedback.trim()}
+            onClick={() => {
+              const next = {
+                ...brief,
+                ...instructionHints(feedback),
+                feedback,
+              };
+              setBrief(next);
+              void generate(next);
+            }}
+          >
+            Regenerate reviewed proposal
+          </button>
+          <p className="muted">
+            Feedback applies supported duration/platform/framing/preset hints.
+            Other notes are retained for owner review, not interpreted as visual
+            facts. The current timeline is unchanged until you apply the new
+            proposal.
+          </p>
           <p>
             {plan.preset} · {plan.branding}
           </p>
@@ -332,7 +382,8 @@ export default function AutomaticEditingDirector({
                     {f.mime.startsWith("video/")
                       ? `${s.start.toFixed(2)}–${s.end.toFixed(2)}s trim`
                       : `${s.duration.toFixed(2)}s display`}{" "}
-                    · Hard cut · Caption: {s.caption || "Off"}
+                    · {s.transition === "cut" ? "Hard cut" : "Soft crossfade"} ·
+                    Caption: {s.caption || "Off"}
                   </p>
                   <small>
                     Scene {i + 1} · Asset {s.mediaId}

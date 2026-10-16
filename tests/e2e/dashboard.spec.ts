@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { waitForOwnerWorkspace } from "./workspace";
+import { waitForOwnerWorkspace, openWorkspaceSection } from "./workspace";
 import { EDIT_PREFIX } from "../../lib/studio-model.mjs";
 
 test("owner dashboard saves drafts and renders without mobile overflow (mocked Supabase)", async ({
@@ -101,13 +101,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
   await waitForOwnerWorkspace(page);
   const logo = page.getByRole("img", { name: /COBS BUILDMASTERS LTD/ });
   await expect(logo).toBeVisible();
-  await expect
-    .poll(() =>
-      page
-        .locator(".hero-mark img")
-        .evaluate((image) => (image as HTMLImageElement).naturalWidth),
-    )
-    .toBe(1280);
+
   await expect
     .poll(() =>
       logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
@@ -123,15 +117,16 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     }),
   ).toBe(true);
   await expect(
-    page.getByRole("heading", { name: "Overview", exact: true }),
+    page.getByRole("heading", {
+      name: "What would you like to create?",
+      exact: true,
+    }),
   ).toBeVisible();
   await page.screenshot({
     path: ".tools/screenshots/dashboard-desktop.png",
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Content Calendar", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Content Calendar");
   await page.getByLabel("Post title").fill("Factory block production");
   await page
     .getByLabel("Post copy")
@@ -142,9 +137,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
   ).toBeVisible();
   expect(posts).toHaveLength(1);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Content Calendar", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Content Calendar");
   await expect(
     page.getByText("Factory block production", { exact: true }),
   ).toBeVisible();
@@ -160,9 +153,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     }),
   ).toBe(true);
   await expect(
-    page
-      .getByRole("heading", { name: "Content Calendar", exact: true })
-      .first(),
+    page.getByRole("heading", { name: "My Posts", exact: true }).first(),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -173,9 +164,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     path: ".tools/screenshots/dashboard-mobile.png",
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Media Library", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Media Library");
   await expect(
     page.getByRole("heading", { name: "Project media library" }),
   ).toBeVisible();
@@ -188,10 +177,8 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
     path: ".tools/screenshots/media-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Photo & single-source exports", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Media Studio");
+  await page.getByRole("button", { name: "Photo editor", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Project title", exact: true })
     .fill("Synthetic editor recipe");
@@ -224,10 +211,8 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
   ).toBe(true);
   await page.reload();
   await waitForOwnerWorkspace(page);
-  await page.getByRole("button", { name: "Media Studio", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Photo & single-source exports", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Media Studio");
+  await page.getByRole("button", { name: "Photo editor", exact: true }).click();
   await page
     .getByRole("combobox", { name: "Saved editing project", exact: true })
     .selectOption(
@@ -250,9 +235,7 @@ test("owner dashboard saves drafts and renders without mobile overflow (mocked S
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page
-    .getByRole("button", { name: "Content Calendar", exact: true })
-    .click();
+  await openWorkspaceSection(page, "Content Calendar");
   await expect(
     page.getByText("Synthetic editor recipe", { exact: true }),
   ).toHaveCount(0);

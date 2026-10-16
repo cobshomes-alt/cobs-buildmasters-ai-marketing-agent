@@ -117,6 +117,14 @@ export async function POST(request: Request) {
         validateTimeline(data.document) || "Invalid save revision.",
       );
     const doc = data.document as TimelineDocument;
+    if (
+      doc.audioTracks?.length ||
+      doc.clips.some((c) => c.effects || c.transition)
+    )
+      throw new HttpError(
+        409,
+        "Cinematic project persistence requires a separately reviewed schema extension. Export this unsaved snapshot; no unsupported fields were saved.",
+      );
     const saved = await client.rpc("cobs_save_edit_project", {
       document: doc,
       expected_revision: data.revision,

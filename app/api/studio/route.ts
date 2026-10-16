@@ -76,6 +76,14 @@ export async function GET(request: Request) {
           worker.version >= 3 &&
           worker.token === worker.capability_token &&
           worker.heartbeat > Date.now() - 15000,
+        constructionReady:
+          worker.version >= 5 &&
+          worker.token === worker.capability_token &&
+          worker.heartbeat > Date.now() - 15000,
+        cinematicReady:
+          worker.version >= 4 &&
+          worker.token === worker.capability_token &&
+          worker.heartbeat > Date.now() - 15000,
         jobs: listJobs(db, user.id),
       },
       { headers: { "Cache-Control": "no-store" } },
